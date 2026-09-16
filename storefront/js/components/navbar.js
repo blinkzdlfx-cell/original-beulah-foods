@@ -9,7 +9,7 @@ function ensureStyles() {
   const favicon = document.querySelector('link[rel="icon"]') || document.createElement("link");
   favicon.rel = "icon";
   favicon.type = "image/webp";
-  favicon.href = "/storefront/assets/favicon.webp";
+  favicon.href = "/assets/favicon.webp";
   if (!favicon.parentNode) document.head.append(favicon);
 
   const style = document.createElement("style");

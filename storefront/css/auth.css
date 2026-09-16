@@ -102,7 +102,7 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: #fff url("/storefront/assets/beulah-logo.webp") center/contain no-repeat;
+  background: #fff url("/assets/beulah-logo.webp") center/contain no-repeat;
   color: transparent;
   border: 1px solid rgba(7,53,31,.10);
 }

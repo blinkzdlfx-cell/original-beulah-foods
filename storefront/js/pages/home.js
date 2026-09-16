@@ -93,7 +93,7 @@ function renderFeaturedStructuredData(products) {
     itemListElement: products.map((product, index) => ({
       "@type": "ListItem",
       position: index + 1,
-      url: `https://beulah-foods.blinkzdlfx.workers.dev/storefront/product.html?slug=${encodeURIComponent(product.slug)}`,
+      url: `/product.html?slug=${encodeURIComponent(product.slug)}`,
       item: {
         "@type": "Product",
         name: product.name,

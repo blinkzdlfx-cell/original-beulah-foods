@@ -43,7 +43,7 @@
   height: 58px;
   margin-bottom: 20px;
   border-radius: 50%;
-  background: #fff url("/storefront/assets/beulah-logo.webp") center / contain no-repeat;
+  background: #fff url("/assets/beulah-logo.webp") center / contain no-repeat;
   border: 1px solid var(--color-border);
   box-shadow: 0 2px 6px rgba(16,24,20,.05);
   font-size: 0;
