@@ -1,0 +1,44 @@
+name: Import storefront foundation
+
+on:
+  push:
+    branches:
+      - feature/frontend-foundation
+
+permissions:
+  contents: write
+
+jobs:
+  import-storefront:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout new repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Checkout previous storefront source
+        uses: actions/checkout@v4
+        with:
+          repository: blinkzdlfx-cell/Beulah-foods
+          ref: main
+          path: source-repo
+          fetch-depth: 1
+
+      - name: Copy customer storefront foundation
+        run: |
+          rm -rf storefront
+          cp -R source-repo/storefront storefront
+          rm -rf source-repo
+
+      - name: Commit imported storefront
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add storefront
+          if git diff --cached --quiet; then
+            echo "No storefront changes to commit."
+            exit 0
+          fi
+          git commit -m "chore: import storefront foundation"
+          git push origin HEAD:feature/frontend-foundation
