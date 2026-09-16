@@ -1,0 +1,23 @@
+name: Frontend JavaScript Syntax
+
+on:
+  push:
+    branches: [feature/js-regeneration-foundation]
+  pull_request:
+    branches: [main]
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check storefront JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r file; do
+            node --check "$file"
+          done < <(find storefront/js -type f -name '*.js' -print | sort)
