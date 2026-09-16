@@ -1,0 +1,9 @@
+name = "original-beulah-foods"
+main = "worker.js"
+compatibility_date = "2026-09-16"
+
+[assets]
+directory = "./storefront"
+
+[observability]
+enabled = true
