@@ -1,106 +1,81 @@
 const CART_KEY = "beulah_foods_cart";
 const CART_EVENT = "beulah:cart-changed";
 
-let databaseHydrationPromise = null;
-let databasePersistenceQueue = Promise.resolve();
-let cartMutationVersion = 0;
+let lastSignature = null;
 
 function normalizeItem(item) {
-  const quantity = Number.parseInt(item.quantity, 10);
-  return {
-    productId: String(item.productId),
-    quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1,
-  };
+  const productId = String(item?.productId ?? "").trim();
+  const quantity = Number.parseInt(item?.quantity, 10);
+  if (!productId || !Number.isFinite(quantity) || quantity <= 0) return null;
+  return { productId, quantity };
+}
+
+function normalizeCart(items) {
+  if (!Array.isArray(items)) return [];
+  const merged = new Map();
+  for (const item of items) {
+    const normalized = normalizeItem(item);
+    if (!normalized) continue;
+    merged.set(
+      normalized.productId,
+      (merged.get(normalized.productId) || 0) + normalized.quantity,
+    );
+  }
+  return [...merged.entries()].map(([productId, quantity]) => ({
+    productId,
+    quantity,
+  }));
+}
+
+function signature(items) {
+  return normalizeCart(items)
+    .sort((a, b) => a.productId.localeCompare(b.productId))
+    .map((item) => `${item.productId}:${item.quantity}`)
+    .join("|");
 }
 
 export function getCart() {
   try {
     const raw = localStorage.getItem(CART_KEY);
     if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.map(normalizeItem) : [];
+    return normalizeCart(JSON.parse(raw));
   } catch {
     return [];
   }
 }
 
-function saveCart(items) {
-  const normalized = items.map(normalizeItem);
-  cartMutationVersion += 1;
-  localStorage.setItem(CART_KEY, JSON.stringify(normalized));
-  window.dispatchEvent(new CustomEvent(CART_EVENT, { detail: normalized }));
+function writeCart(items, { forceEvent = false } = {}) {
+  const normalized = normalizeCart(items);
+  const nextSignature = signature(normalized);
+  const changed = nextSignature !== lastSignature;
+
+  if (changed || forceEvent) {
+    localStorage.setItem(CART_KEY, JSON.stringify(normalized));
+    lastSignature = nextSignature;
+    window.dispatchEvent(
+      new CustomEvent(CART_EVENT, { detail: normalized }),
+    );
+  }
+
   return normalized;
 }
 
-async function getSupabaseCartApi() {
-  const [{ supabase }, { getCurrentSession }] = await Promise.all([
-    import("../lib/supabaseClient.js"),
-    import("./authService.js"),
-  ]);
-  const session = await getCurrentSession();
-  if (!session?.user) return null;
-  return { supabase };
+/**
+ * Re-reads the persistent browser cart once for the current page.
+ * It does not contact Supabase and does not start a polling loop.
+ * A cart-change event is emitted only when the normalized state changes.
+ */
+export function refreshCart() {
+  return writeCart(getCart());
 }
 
-function queueDatabasePersistence(items, mode, mutationVersion) {
-  const snapshot = items.map(normalizeItem);
-  const task = async () => {
-    try {
-      const api = await getSupabaseCartApi();
-      if (!api) return null;
-      const { data, error } = await api.supabase.rpc(
-        mode === "merge" ? "merge_customer_cart" : "set_customer_cart",
-        { cart_items: snapshot },
-      );
-      if (error) throw error;
-      const databaseItems = Array.isArray(data) ? data.map(normalizeItem) : [];
-
-      // Never let a stale database response overwrite a newer local mutation.
-      if (mutationVersion === cartMutationVersion) return saveCart(databaseItems);
-      return databaseItems;
-    } catch (error) {
-      console.error("Cart database sync failed:", error);
-      return null;
-    }
-  };
-
-  databasePersistenceQueue = databasePersistenceQueue.then(task, task);
-  return databasePersistenceQueue;
-}
-
-async function persistCartToDatabase(items, mode = "set") {
-  return queueDatabasePersistence(items, mode, cartMutationVersion);
-}
-
+/**
+ * Kept as a compatibility name for existing page modules.
+ * The new cart is intentionally localStorage-first, so hydration is local
+ * normalization rather than a database cart merge.
+ */
 export async function hydrateCartFromDatabase() {
-  if (databaseHydrationPromise) return databaseHydrationPromise;
-
-  databaseHydrationPromise = (async () => {
-    try {
-      const localItems = getCart();
-      const api = await getSupabaseCartApi();
-      if (!api) return localItems;
-
-      const { data, error } = await api.supabase.rpc("get_customer_cart");
-      if (error) throw error;
-      const databaseItems = Array.isArray(data) ? data.map(normalizeItem) : [];
-
-      // Merge a cart created before login into the durable customer cart.
-      if (localItems.length) {
-        return (await persistCartToDatabase(localItems, "merge")) ?? databaseItems;
-      }
-
-      if (cartMutationVersion === 0) return saveCart(databaseItems);
-      return getCart();
-    } catch (error) {
-      console.error("Cart hydration failed:", error);
-      return getCart();
-    } finally {
-      databaseHydrationPromise = null;
-    }
-  })();
-
-  return databaseHydrationPromise;
+  return refreshCart();
 }
 
 export function addToCart(productId, quantity = 1) {
@@ -108,44 +83,39 @@ export function addToCart(productId, quantity = 1) {
   const id = String(productId);
   const amount = Math.max(1, Number.parseInt(quantity, 10) || 1);
   const existing = items.find((item) => item.productId === id);
+
   if (existing) existing.quantity += amount;
   else items.push({ productId: id, quantity: amount });
-  const next = saveCart(items);
-  void persistCartToDatabase(next, "set");
-  return next;
+
+  return writeCart(items);
 }
 
 export function updateCartQuantity(productId, quantity) {
   const nextQuantity = Number.parseInt(quantity, 10) || 0;
   const items = getCart()
     .map((item) =>
-      item.productId === String(productId) ? { ...item, quantity: nextQuantity } : item,
+      item.productId === String(productId)
+        ? { ...item, quantity: nextQuantity }
+        : item,
     )
     .filter((item) => item.quantity > 0);
-  const next = saveCart(items);
-  void persistCartToDatabase(next, "set");
-  return next;
+
+  return writeCart(items);
 }
 
 export function removeFromCart(productId) {
-  const items = getCart().filter((item) => item.productId !== String(productId));
-  const next = saveCart(items);
-  void persistCartToDatabase(next, "set");
-  return next;
+  return writeCart(
+    getCart().filter((item) => item.productId !== String(productId)),
+  );
 }
 
 export function removeCartItems(productIds) {
   const ids = new Set((productIds || []).map(String));
-  const items = getCart().filter((item) => !ids.has(String(item.productId)));
-  const next = saveCart(items);
-  void persistCartToDatabase(next, "set");
-  return next;
+  return writeCart(getCart().filter((item) => !ids.has(item.productId)));
 }
 
 export function clearCart() {
-  const next = saveCart([]);
-  void persistCartToDatabase(next, "set");
-  return next;
+  return writeCart([]);
 }
 
 export function getCartItemCount() {
@@ -157,3 +127,6 @@ export function onCartChange(callback) {
   window.addEventListener(CART_EVENT, handler);
   return () => window.removeEventListener(CART_EVENT, handler);
 }
+
+// Establish the in-memory signature without forcing a render on every module import.
+lastSignature = signature(getCart());
