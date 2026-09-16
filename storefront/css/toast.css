@@ -1,0 +1,60 @@
+.beulah-toast-container {
+  position: fixed;
+  top: 84px;
+  right: 18px;
+  z-index: 1000;
+  display: grid;
+  gap: 10px;
+  width: min(360px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.beulah-toast {
+  display: grid;
+  grid-template-columns: 28px 1fr 28px;
+  align-items: center;
+  gap: 10px;
+  min-height: 54px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-md);
+  pointer-events: auto;
+  animation: beulah-toast-in 180ms ease-out;
+}
+
+.beulah-toast--success { border-color: color-mix(in srgb, var(--color-accent) 38%, var(--color-border)); }
+.beulah-toast--error { border-color: #d9a4a4; }
+.beulah-toast--warning { border-color: #d8c48a; }
+
+.beulah-toast__icon {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--color-accent-soft);
+  color: var(--color-accent-dark);
+  font-size: .82rem;
+  font-weight: 800;
+}
+
+.beulah-toast--error .beulah-toast__icon { background: #fbeaea; color: #9b2c2c; }
+.beulah-toast--warning .beulah-toast__icon { background: #fff7d6; color: #765900; }
+.beulah-toast__message { font-size: .9rem; line-height: 1.4; }
+.beulah-toast__close { width: 28px; height: 28px; border: 0; background: transparent; color: var(--color-text-muted); font-size: 1.25rem; cursor: pointer; }
+.beulah-toast__close:hover { color: var(--color-text); }
+.beulah-toast--leaving { animation: beulah-toast-out 180ms ease-in forwards; }
+
+@keyframes beulah-toast-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes beulah-toast-out { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-6px); } }
+
+@media (max-width: 760px) {
+  .beulah-toast-container { top: 72px; right: 12px; left: 12px; width: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .beulah-toast, .beulah-toast--leaving { animation: none; }
+}

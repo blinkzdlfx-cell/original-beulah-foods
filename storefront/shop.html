@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en-NG">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shop Beulah Foods — Healthy Food Products in Lagos</title>
+  <meta name="description" content="Browse Beulah Foods products available online in Lagos, Nigeria. View live prices, categories and stock availability." />
+  <meta name="robots" content="index, follow, max-image-preview:large" />
+  <link rel="canonical" href="/shop" />
+  <link rel="icon" href="/assets/favicon.webp" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Beulah Foods" />
+  <meta property="og:title" content="Shop Beulah Foods — Healthy Food Products in Lagos" />
+  <meta property="og:description" content="Browse live Beulah Foods products, prices and availability." />
+  <meta property="og:url" content="/shop" />
+  <meta property="og:image" content="/assets/hero-food-spread.webp" />
+  <link rel="stylesheet" href="css/variables.css" />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/shop.css" />
+  <link rel="stylesheet" href="css/toast.css" />
+</head>
+<body>
+  <header class="site-header"><div class="site-header__inner">
+    <a class="site-header__logo-wrap" href="index.html" aria-label="Beulah Foods home"><span class="site-header__mark" aria-hidden="true"></span><span class="site-header__brand">Beulah Foods</span></a>
+    <nav id="site-header-nav" class="site-header__nav" aria-label="Main navigation" hidden></nav>
+  </div></header>
+  <main class="shop-page">
+    <section class="shop-heading"><p class="eyebrow">Beulah Foods · Lagos, Nigeria</p><h1>Shop our products.</h1><p>Browse products currently available from the live Beulah Foods catalogue. Prices and availability come directly from the backend.</p></section>
+    <div class="shop-toolbar"><span id="product-count" class="shop-toolbar__meta">Loading products...</span><button id="mobile-filter-toggle" class="btn btn-secondary mobile-filter-toggle" type="button" aria-expanded="false" aria-controls="shop-filters">Filters</button></div>
+    <div class="shop-layout">
+      <aside id="shop-filters" class="shop-filters card" aria-label="Product filters"><h2>Categories</h2><div id="category-list"></div></aside>
+      <section class="shop-results" aria-label="Products"><div id="shop-status" class="shop-status" role="status" aria-live="polite" hidden></div><div id="product-grid" class="product-grid"></div><div id="shop-pagination" class="shop-pagination" aria-label="Product pages"></div><div id="shop-empty" class="shop-empty card" hidden><h2>No products found.</h2><p>There are no active products in this selection yet. The catalogue is controlled from the Beulah Foods backend.</p><a class="btn btn-secondary" href="index.html">Back home</a></div></section>
+    </div>
+  </main>
+  <script type="module" src="js/pages/shop.js"></script>
+</body>
+</html>

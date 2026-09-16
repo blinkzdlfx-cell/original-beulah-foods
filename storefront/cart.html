@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your cart — Beulah Foods</title>
+  <link rel="icon" href="/assets/favicon.webp" />
+  <link rel="stylesheet" href="css/variables.css" />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/cart.css" />
+  <link rel="stylesheet" href="css/cart-quantity.css" />
+  <link rel="stylesheet" href="css/toast.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="site-header__logo-wrap" href="index.html" aria-label="Beulah Foods home">
+        <img class="site-header__logo" src="assets/beulah-logo.webp" alt="Beulah Foods">
+      </a>
+      <nav id="site-header-nav" class="site-header__nav" aria-label="Main navigation" hidden></nav>
+    </div>
+  </header>
+
+  <main class="cart-page">
+    <section class="cart-heading">
+      <a class="cart-back" href="shop.html"><span aria-hidden="true">←</span> Shop</a>
+      <p class="eyebrow">Cart</p>
+      <h1>Your cart.</h1>
+      <p>Choose what you want to buy now. Anything you leave unselected stays in your cart.</p>
+    </section>
+
+    <div id="cart-status" class="cart-status" role="status" aria-live="polite" hidden></div>
+
+    <div class="cart-content">
+      <section class="cart-list-wrap">
+        <div id="cart-select-bar" class="cart-select-bar" hidden>
+          <div class="cart-select-bar__title">
+            <strong>Selected items</strong>
+            <span id="cart-selected-count" class="cart-selected-count">0 selected</span>
+          </div>
+          <label class="cart-select-all"><input id="cart-select-all" type="checkbox" checked> <span>Select all</span></label>
+        </div>
+        <section id="cart-list" class="cart-list" aria-label="Cart items"></section>
+      </section>
+
+      <aside id="cart-summary" class="cart-summary card" hidden>
+        <h2>Order summary</h2>
+        <div class="cart-summary__row">
+          <span>Selected items</span>
+          <strong id="cart-selected-items">0</strong>
+        </div>
+        <div class="cart-summary__row">
+          <span>Subtotal</span>
+          <strong id="cart-subtotal">₦0.00</strong>
+        </div>
+        <a id="checkout-link" class="btn btn-primary" href="checkout.html" aria-disabled="true">Review order</a>
+      </aside>
+    </div>
+
+    <section id="cart-empty" class="cart-empty card" hidden>
+      <h2>Your cart is empty.</h2>
+      <p>Add products from the shop to begin an order.</p>
+      <a class="btn btn-primary" href="shop.html">Browse products</a>
+    </section>
+  </main>
+
+  <script type="module" src="js/pages/cart.js"></script>
+</body>
+</html>

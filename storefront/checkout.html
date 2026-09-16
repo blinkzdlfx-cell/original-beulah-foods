@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Checkout — Beulah Foods</title>
+  <link rel="icon" href="assets/favicon.webp" />
+  <link rel="stylesheet" href="css/variables.css" />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/cart.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="site-header__logo-wrap" href="index.html" aria-label="Beulah Foods home">
+        <img class="site-header__logo" src="assets/beulah-logo.webp" alt="Beulah Foods">
+      </a>
+      <nav id="site-header-nav" class="site-header__nav" aria-label="Main navigation" hidden></nav>
+    </div>
+  </header>
+
+  <main class="checkout-page">
+    <section class="checkout-heading">
+      <a class="checkout-back" href="cart.html"><span aria-hidden="true">←</span> Cart</a>
+      <p class="eyebrow">Checkout</p>
+      <h1>Review and confirm.</h1>
+      <p>Confirm your details and order before we reserve your items and open payment.</p>
+    </section>
+
+    <div id="checkout-reservation" class="checkout-reservation" hidden>
+      <div class="checkout-reservation__topline">
+        <div>
+          <span id="checkout-reservation-eyebrow" class="checkout-reservation__eyebrow">Order reserved</span>
+          <h2 id="checkout-reservation-title" class="checkout-reservation__title">Complete your payment.</h2>
+          <strong id="checkout-reservation-order">BF-58030001</strong>
+        </div>
+        <strong id="checkout-reservation-countdown" class="checkout-reservation__countdown" aria-live="polite">15:00</strong>
+      </div>
+      <p id="checkout-reservation-message" class="checkout-reservation__message">Your items are reserved while you complete payment.</p>
+      <div class="checkout-reservation__actions">
+        <a href="orders.html">View my orders <span aria-hidden="true">→</span></a>
+        <button id="checkout-cancel-reservation" class="btn btn-secondary" type="button">Cancel reservation</button>
+        <button id="checkout-retry-reservation" class="btn btn-primary" type="button" hidden>Retry checkout</button>
+        <a id="checkout-return-cart" class="btn btn-secondary" href="cart.html" hidden>Return to cart</a>
+      </div>
+    </div>
+
+    <div id="checkout-status" class="checkout-status" role="status" aria-live="polite" hidden></div>
+    <div id="checkout-auth-notice" class="checkout-auth-notice" hidden></div>
+
+    <div class="checkout-content">
+      <form id="checkout-form" class="checkout-card card" hidden>
+        <section class="checkout-section">
+          <div class="checkout-section__header">
+            <div>
+              <p class="checkout-section__eyebrow">Delivery</p>
+              <h2>Delivery details</h2>
+            </div>
+            <a class="checkout-edit-link" href="account.html">Edit in My Account</a>
+          </div>
+
+          <div id="checkout-profile" class="checkout-profile-card" aria-live="polite">
+            <div class="checkout-profile-row"><span class="checkout-profile-label">Full name</span><strong id="checkout-full-name">—</strong></div>
+            <div class="checkout-profile-row"><span class="checkout-profile-label">Phone number</span><strong id="checkout-phone">—</strong></div>
+            <div class="checkout-profile-row"><span class="checkout-profile-label">Delivery address</span><strong id="checkout-address">—</strong></div>
+          </div>
+
+          <div id="checkout-profile-missing" class="checkout-profile-missing" hidden>
+            <h3>Complete your delivery details</h3>
+            <p>Add your full name, phone number, and delivery address in My Account before continuing.</p>
+            <a class="btn btn-primary checkout-account-link" href="account.html">Go to My Account <span aria-hidden="true">→</span></a>
+          </div>
+        </section>
+
+        <section class="checkout-section checkout-promo-section">
+          <div class="checkout-section__header">
+            <div><p class="checkout-section__eyebrow">Savings</p><h2>Promo code</h2></div>
+            <span class="checkout-optional">Optional</span>
+          </div>
+          <div class="checkout-promo-row"><input id="promo-code" name="promoCode" autocomplete="off" maxlength="50" placeholder="Enter promo code" aria-label="Promo code" /></div>
+        </section>
+
+        <div class="checkout-confirm-note" id="checkout-confirm-note">Confirming this order will reserve these items for 15 minutes while you complete payment.</div>
+        <button id="checkout-submit" class="btn btn-primary checkout-submit" type="submit" disabled>Confirm order &amp; reserve items</button>
+      </form>
+
+      <aside class="checkout-card card">
+        <h2>Order summary</h2>
+        <div id="checkout-items" class="checkout-items"></div>
+        <div class="cart-summary__row"><span>Subtotal</span><strong id="checkout-subtotal">₦0.00</strong></div>
+        <div id="checkout-delivery-row" class="cart-summary__row" hidden><span>Delivery</span><strong id="checkout-delivery">—</strong></div>
+        <div id="checkout-discount-row" class="cart-summary__row" hidden><span>Discount</span><strong id="checkout-discount">—</strong></div>
+        <div class="cart-summary__row cart-summary__row--total"><span>Total</span><strong id="checkout-total">₦0.00</strong></div>
+      </aside>
+    </div>
+  </main>
+
+  <script type="module" src="js/services/checkoutStateBridge.js"></script>
+  <script type="module" src="js/pages/checkout.js"></script>
+</body>
+</html>

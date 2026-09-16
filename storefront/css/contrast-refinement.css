@@ -1,0 +1,54 @@
+/*
+ * Compatibility layer retained for older page imports.
+ * The active storefront surface, border and action system lives in
+ * storefront/css/supabase-ui.css.
+ */
+
+:root {
+  --surface-soft: var(--color-surface-subtle);
+  --surface-muted: #edf2ef;
+  --surface-white: var(--color-surface);
+}
+
+.account-summary,
+.account-form-card,
+.cart-summary,
+.checkout-card,
+.shop-filters,
+.shop-empty,
+.product-card,
+.cart-item,
+.auth-card {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-sm);
+}
+
+.section--soft { background: var(--color-surface); }
+
+.form-field input,
+.form-field textarea,
+.form-field select,
+.quantity-control input {
+  background: var(--color-control);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.form-field label { color: var(--color-text); }
+
+.account-summary::before,
+.account-form-card::before,
+.cart-summary::before,
+.checkout-card::before,
+.shop-filters::before {
+  content: none !important;
+  display: none !important;
+}
+
+@media (max-width:760px) {
+  .site-header__menu {
+    background: var(--color-surface) !important;
+    border-color: var(--color-border) !important;
+  }
+}
