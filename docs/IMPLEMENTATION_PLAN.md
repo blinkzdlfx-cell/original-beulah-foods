@@ -10,10 +10,12 @@
 
 ## Phase 1 — frontend foundation
 
-- [ ] Import customer storefront HTML/CSS/vanilla JavaScript and required static assets.
-- [ ] Remove old deployment-specific canonical URLs and provider configuration.
-- [ ] Make all frontend URLs relative to the canonical deployed origin.
-- [ ] Rebuild cart manager around localStorage-first state and authoritative catalogue reconciliation.
+- [x] Import customer storefront HTML/CSS/vanilla JavaScript and required static assets.
+- [x] Remove old deployment-specific canonical URLs and provider configuration.
+- [x] Make frontend page/asset URLs relative to the canonical deployed origin.
+- [x] Rebuild cart manager around localStorage-first state and change-driven updates.
+- [x] Add Cloudflare static Worker configuration without payment mocks.
+- [ ] Review page modules for old backend/payment coupling after the new Supabase contract exists.
 - [ ] Preserve customer-facing visual design while removing old backend/payment coupling.
 
 ## Phase 2 — new Supabase
@@ -27,7 +29,7 @@
 
 ## Phase 3 — Cloudflare payment boundary
 
-- [ ] Create static storefront Worker configuration.
+- [x] Establish static storefront Worker configuration.
 - [ ] Add `/api/paystack/initialize`.
 - [ ] Add `/api/paystack/verify`.
 - [ ] Add `/api/paystack/webhook`.
