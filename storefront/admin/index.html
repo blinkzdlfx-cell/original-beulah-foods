@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en-NG">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Beulah Foods Admin — Dashboard</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+<div class="admin-shell">
+  <header class="admin-header">
+    <div class="admin-header__inner">
+      <a class="admin-brand" href="/admin/" aria-label="Beulah Foods Admin home">
+        <span class="admin-brand__mark">BF</span>
+        <span>Beulah <span>Foods</span> Admin</span>
+      </a>
+      <div class="admin-header__meta">
+        <div class="admin-user-chip"><small>Environment</small><strong>New backend · pending</strong></div>
+      </div>
+      <button class="admin-menu-toggle" id="admin-menu-toggle" type="button" aria-expanded="false" aria-controls="admin-menu" aria-label="Open admin menu"><span></span><span></span><span></span></button>
+      <div class="admin-menu" id="admin-menu">
+        <nav class="admin-nav" aria-label="Admin navigation">
+          <a href="/admin/" aria-current="page">Dashboard</a>
+          <a href="/admin/orders.html">Orders</a>
+          <a href="/admin/transactions.html">Transactions</a>
+        </nav>
+        <button class="admin-menu__logout" id="admin-logout" type="button">Log out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="admin-main">
+    <section class="page-heading">
+      <div>
+        <p class="page-heading__eyebrow">Store operations</p>
+        <h1>Dashboard</h1>
+        <p>Catalogue, inventory, delivery and promotions will be connected to the new Supabase backend after the data model is finalized.</p>
+      </div>
+    </section>
+
+    <div class="alert" role="status">Database connection is intentionally not active yet. The values below are empty by design; no mock business data is being displayed.</div>
+
+    <section class="metric-grid" aria-label="Store metrics">
+      <article class="metric"><span class="metric__label">Products</span><strong>—</strong><small>Awaiting database</small></article>
+      <article class="metric"><span class="metric__label">Active products</span><strong>—</strong><small>Awaiting database</small></article>
+      <article class="metric"><span class="metric__label">Available units</span><strong>—</strong><small>Awaiting database</small></article>
+      <article class="metric"><span class="metric__label">Low stock</span><strong>—</strong><small>Awaiting database</small></article>
+    </section>
+
+    <div class="admin-grid">
+      <section class="admin-card">
+        <div class="admin-card__heading"><div><h2>Product catalogue</h2><p>UI contract preserved from the TEST dashboard; data actions will be wired after the schema is approved.</p></div><span class="badge badge--neutral">DB pending</span></div>
+        <form id="product-form" class="form-grid">
+          <input id="product-id" type="hidden">
+          <div class="field"><label for="product-name">Name</label><input id="product-name" name="name" placeholder="Product name" disabled></div>
+          <div class="field"><label for="product-category">Category</label><select id="product-category" name="category_id" disabled><option>Categories will load here</option></select></div>
+          <div class="field full"><label for="product-description">Description</label><textarea id="product-description" name="description" placeholder="Product description" disabled></textarea></div>
+          <div class="field"><label for="product-price">Price (NGN)</label><input id="product-price" name="price" type="number" min="0" step="0.01" disabled></div>
+          <div class="field"><label for="product-stock">Stock quantity</label><input id="product-stock" name="stock_quantity" type="number" min="0" step="1" disabled></div>
+          <div class="field"><label for="product-image">Product image</label><input id="product-image" name="image" type="file" accept="image/jpeg,image/png,image/webp" disabled><small>Image storage will be connected with the approved storage policy.</small></div>
+          <div class="field"><label for="product-sort">Sort order</label><input id="product-sort" name="sort_order" type="number" value="0" disabled></div>
+          <label class="field checkbox-field"><input id="product-active" name="is_active" type="checkbox" disabled> Active</label>
+          <label class="field checkbox-field"><input id="product-featured" name="is_featured" type="checkbox" disabled> Featured</label>
+          <div class="actions full"><button class="btn btn-primary" type="button" disabled>Save product</button><button class="btn btn-secondary" type="button" disabled>Clear</button></div>
+        </form>
+      </section>
+
+      <section class="admin-card">
+        <div class="admin-card__heading"><div><h2>Categories</h2><p>Create and control catalogue categories.</p></div><span class="badge badge--neutral">DB pending</span></div>
+        <div class="stack">
+          <div class="field"><label for="category-name">Name</label><input id="category-name" placeholder="Category name" disabled></div>
+          <div class="field"><label for="category-description">Description</label><textarea id="category-description" placeholder="Category description" disabled></textarea></div>
+          <div class="actions"><button class="btn btn-primary" type="button" disabled>Save category</button></div>
+        </div>
+        <div class="table-wrap" style="margin-top:18px"><table class="table"><thead><tr><th>Name</th><th>Slug</th><th>Status</th></tr></thead><tbody id="category-rows"><tr><td colspan="3" class="table-empty">Categories will appear here after database setup.</td></tr></tbody></table></div>
+      </section>
+
+      <section class="admin-card admin-card--wide">
+        <div class="admin-card__heading"><div><h2>Products</h2><p>Server-paginated catalogue management.</p></div><span class="badge badge--neutral">DB pending</span></div>
+        <div class="table-wrap"><table class="table"><thead><tr><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Featured</th><th>Status</th><th>Action</th></tr></thead><tbody id="product-rows"><tr><td colspan="7" class="table-empty">Products will appear here after database setup.</td></tr></tbody></table></div>
+        <div id="product-pagination" class="admin-pagination"></div>
+      </section>
+
+      <section class="admin-card">
+        <div class="admin-card__heading"><div><h2>Delivery settings</h2><p>Control whether delivery is enabled and the authoritative delivery fee.</p></div><span class="badge badge--neutral">DB pending</span></div>
+        <div class="form-grid">
+          <label class="field checkbox-field full"><input id="delivery-enabled" type="checkbox" disabled> Enable delivery</label>
+          <div class="field"><label for="delivery-fee">Delivery fee (NGN)</label><input id="delivery-fee" type="number" min="0" step="0.01" disabled></div>
+          <label class="field checkbox-field full"><input id="delivery-active" type="checkbox" disabled> Make these settings active</label>
+          <div class="actions full"><button class="btn btn-primary" type="button" disabled>Save delivery settings</button></div>
+        </div>
+      </section>
+
+      <section class="admin-card">
+        <div class="admin-card__heading"><div><h2>Promo codes</h2><p>V1 discounts with database-enforced limits.</p></div><span class="badge badge--neutral">DB pending</span></div>
+        <div class="form-grid">
+          <div class="field"><label for="promo-code">Code</label><input id="promo-code" maxlength="50" disabled></div>
+          <div class="field"><label for="promo-type">Discount type</label><select id="promo-type" disabled><option>Percentage</option><option>Fixed amount</option></select></div>
+          <div class="field"><label for="promo-value">Discount value</label><input id="promo-value" type="number" disabled></div>
+          <div class="field"><label for="promo-limit">Usage limit</label><input id="promo-limit" type="number" disabled></div>
+          <div class="actions full"><button class="btn btn-primary" type="button" disabled>Save promo</button></div>
+        </div>
+        <div class="table-wrap" style="margin-top:18px"><table class="table"><thead><tr><th>Code</th><th>Discount</th><th>Usage</th><th>Status</th></tr></thead><tbody id="promo-rows"><tr><td colspan="4" class="table-empty">Promo codes will appear here after database setup.</td></tr></tbody></table></div>
+      </section>
+    </div>
+  </main>
+</div>
+<script>
+const toggle=document.getElementById('admin-menu-toggle');
+const menu=document.getElementById('admin-menu');
+if(toggle&&menu){toggle.addEventListener('click',()=>{const open=menu.classList.toggle('is-open');toggle.setAttribute('aria-expanded',String(open));});document.addEventListener('click',e=>{if(!menu.contains(e.target)&&!toggle.contains(e.target)){menu.classList.remove('is-open');toggle.setAttribute('aria-expanded','false');}});document.addEventListener('keydown',e=>{if(e.key==='Escape'){menu.classList.remove('is-open');toggle.setAttribute('aria-expanded','false');}})}
+</script>
+</body>
+</html>
