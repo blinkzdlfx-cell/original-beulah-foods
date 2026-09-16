@@ -1,0 +1,7 @@
+/*
+ * Legacy brand refinement layer.
+ *
+ * The storefront now uses storefront/css/supabase-ui.css as its active visual
+ * system. This file is intentionally kept as a compatibility layer so older
+ * imports remain valid; no legacy Beulah primary color is defined here.
+ */

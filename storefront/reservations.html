@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <base href="/storefront/" />
+  <title>My Reservations — Beulah Foods</title>
+  <link rel="stylesheet" href="css/variables.css" />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/account.css" />
+  <link rel="stylesheet" href="css/reservations.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="site-header__logo-wrap" href="index.html" aria-label="Beulah Foods home">
+        <span class="site-header__mark" aria-hidden="true"></span>
+        <span class="site-header__brand">Beulah Foods</span>
+      </a>
+      <nav id="site-header-nav" class="site-header__nav" aria-label="Main navigation" hidden></nav>
+    </div>
+  </header>
+
+  <main class="reservations-page">
+    <section class="page-heading">
+      <p class="eyebrow">My reservations</p>
+      <h1>Keep track of your reserved items.</h1>
+      <p>Each checkout reservation is separate. You can have up to two open reservations at a time.</p>
+    </section>
+
+    <section class="reservations-toolbar card" aria-label="Reservation summary">
+      <div>
+        <span class="reservations-toolbar__label">Open reservations</span>
+        <strong id="open-count">— / 2</strong>
+      </div>
+      <a class="btn btn-secondary" href="shop.html">Continue shopping</a>
+    </section>
+
+    <div id="reservations-alert" class="alert" role="status" aria-live="polite" hidden></div>
+    <section id="reservations-list" class="reservations-list" aria-live="polite"></section>
+  </main>
+
+  <script type="module" src="js/pages/reservations.js"></script>
+</body>
+</html>

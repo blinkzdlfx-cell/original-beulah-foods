@@ -1,0 +1,34 @@
+.auth-page {
+  min-height: calc(100vh - 76px);
+}
+
+.auth-shell {
+  min-height: 620px;
+}
+
+.auth-card h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 5vw, 2.8rem);
+  line-height: 1.05;
+  letter-spacing: -0.045em;
+}
+
+.auth-card .form-field input {
+  min-height: 50px;
+}
+
+.auth-intro__content .eyebrow {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+@media (max-width: 760px) {
+  .auth-page {
+    min-height: calc(100vh - 68px);
+    padding: 20px 12px 44px;
+  }
+
+  .auth-shell {
+    min-height: 0;
+  }
+}

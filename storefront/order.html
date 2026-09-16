@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Order — Beulah Foods</title>
+  <base href="/storefront/">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/account.css">
+  <link rel="stylesheet" href="css/orders.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="site-header__logo-wrap" href="/" aria-label="Beulah Foods home"><span class="site-header__mark" aria-hidden="true"></span><span class="site-header__brand">Beulah Foods</span></a>
+      <nav id="site-header-nav" class="site-header__nav" aria-label="Main navigation" hidden></nav>
+    </div>
+  </header>
+  <main class="account-page orders-page">
+    <section class="page-heading"><p class="eyebrow">Order</p><h1 id="order-title">Order details</h1><p id="order-meta"></p></section>
+    <section id="order-reservation" class="order-detail-reservation" hidden>
+      <div><span class="order-card__reservation-label">Payment reserved</span><p id="order-reservation-message">Complete payment before the reservation expires.</p></div>
+      <strong id="order-reservation-countdown" class="order-card__countdown">--:--</strong>
+      <div class="order-detail-reservation__actions"><a id="order-retry" class="order-card__retry" href="/checkout.html">Retry payment</a><button id="order-cancel-reservation" class="btn btn-secondary" type="button">Cancel reservation</button></div>
+    </section>
+    <section class="card order-detail-card"><div id="order-status" class="alert" role="status" hidden></div><div id="order-items" class="stack"></div><div id="order-total" class="order-detail-total"></div></section>
+  </main>
+  <script type="module" src="js/pages/order.js"></script>
+</body>
+</html>
