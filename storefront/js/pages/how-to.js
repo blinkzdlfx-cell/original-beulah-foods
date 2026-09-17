@@ -8,6 +8,17 @@ initHeader(nav);
 
 authenticateSafeFooter();
 
+const backButton = document.querySelector("[data-back]");
+if (backButton) {
+  backButton.addEventListener("click", () => {
+    if (window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+    window.location.href = "index.html";
+  });
+}
+
 function escapeHtml(value) { return String(value ?? "").replace(/[&<>\"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); }
 
 async function loadGuides() {
