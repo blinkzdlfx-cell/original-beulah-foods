@@ -13,20 +13,24 @@
   <header class="admin-header">
     <div class="admin-header__inner">
       <a class="admin-brand" href="/admin/" aria-label="Beulah Foods Admin home">
-        <span class="admin-brand__mark">BF</span>
-        <span>Beulah <span>Foods</span> Admin</span>
+        <span>Beulah</span> <span>Foods</span> Admin
       </a>
-      <div class="admin-header__meta">
-        <div class="admin-user-chip"><small>Environment</small><strong>New backend · pending</strong></div>
-      </div>
-      <button class="admin-menu-toggle" id="admin-menu-toggle" type="button" aria-expanded="false" aria-controls="admin-menu" aria-label="Open admin menu"><span></span><span></span><span></span></button>
-      <div class="admin-menu" id="admin-menu">
+      <button id="admin-menu-toggle" class="admin-menu-toggle" type="button" aria-expanded="false" aria-controls="admin-menu" aria-label="Open admin menu">
+        <span></span><span></span><span></span>
+      </button>
+      <div id="admin-menu" class="admin-menu" hidden>
+        <div class="admin-menu__identity">
+          <span class="admin-menu__label">Signed in as</span>
+          <strong id="admin-name">Admin</strong>
+        </div>
         <nav class="admin-nav" aria-label="Admin navigation">
           <a href="/admin/" aria-current="page">Dashboard</a>
           <a href="/admin/orders.html">Orders</a>
           <a href="/admin/transactions.html">Transactions</a>
         </nav>
-        <button class="admin-menu__logout" id="admin-logout" type="button">Log out</button>
+        <div class="admin-menu__footer">
+          <button id="admin-logout" class="admin-menu__logout" type="button">Log out</button>
+        </div>
       </div>
     </div>
   </header>
@@ -110,7 +114,7 @@
 <script>
 const toggle=document.getElementById('admin-menu-toggle');
 const menu=document.getElementById('admin-menu');
-if(toggle&&menu){toggle.addEventListener('click',()=>{const open=menu.classList.toggle('is-open');toggle.setAttribute('aria-expanded',String(open));});document.addEventListener('click',e=>{if(!menu.contains(e.target)&&!toggle.contains(e.target)){menu.classList.remove('is-open');toggle.setAttribute('aria-expanded','false');}});document.addEventListener('keydown',e=>{if(e.key==='Escape'){menu.classList.remove('is-open');toggle.setAttribute('aria-expanded','false');}})}
+if(toggle&&menu){toggle.addEventListener('click',event=>{event.stopPropagation();const open=menu.hidden;menu.hidden=!open;toggle.setAttribute('aria-expanded',String(open));toggle.setAttribute('aria-label',open?'Close admin menu':'Open admin menu')});menu.querySelectorAll('a').forEach(link=>link.addEventListener('click',()=>{menu.hidden=true;toggle.setAttribute('aria-expanded','false');toggle.setAttribute('aria-label','Open admin menu')}));document.addEventListener('click',event=>{if(!menu.hidden&&!menu.contains(event.target)&&!toggle.contains(event.target)){menu.hidden=true;toggle.setAttribute('aria-expanded','false');toggle.setAttribute('aria-label','Open admin menu')}});document.addEventListener('keydown',event=>{if(event.key==='Escape'){menu.hidden=true;toggle.setAttribute('aria-expanded','false');toggle.setAttribute('aria-label','Open admin menu')}})}
 </script>
 </body>
 </html>
