@@ -10,6 +10,7 @@ required = ["PAYSTACK_SECRET_KEY", "SUPABASE_SECRET_KEY"]
 
 [assets]
 directory = "."
+include = ["admin/**", "storefront/**"]
 
 [observability]
 enabled = true
