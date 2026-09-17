@@ -82,7 +82,7 @@ The database function is the business authority for payment state, order state, 
 
 ## Paystack fees — September 2026 reference
 
-Paystack currently lists Nigerian local transactions at **1.5% + ₦100**, with the ₦100 component waived for transactions below ₦2,500 and a maximum local transaction fee of ₦2,000 per transaction. International card transactions are listed at **3.9% + ₦100** for Mastercard/Visa/Verve and **4.5% for American Express** in the current Paystack pricing/support material. Paystack states that integration itself has zero integration and maintenance fees. These charges are provider pricing, not application-side fees. citeturn5search0turn5search1
+Paystack currently lists Nigerian local transactions at **1.5% + ₦100**, with the ₦100 component waived for transactions below ₦2,500 and a maximum local transaction fee of ₦2,000 per transaction. International card transactions are listed at **3.9% + ₦100** for Mastercard/Visa/Verve and **4.5% for American Express** in the current Paystack pricing/support material. Paystack states that integration itself has zero integration and maintenance fees. These charges are provider pricing, not application-side fees.
 
 The application currently **does not add a Paystack fee to the customer's order total**. `orders.total` remains the merchandise/delivery/promo total defined by the database contract. If the business later chooses to pass Paystack fees to customers, that must be a separately approved pricing/business-rule change and must be implemented in the authoritative order calculation rather than in the browser.
 
@@ -99,4 +99,4 @@ The Paystack Dashboard also needs the deployed webhook URL configured as:
 https://<storefront-origin>/api/paystack/webhook
 ```
 
-Secrets must be configured in Cloudflare rather than committed to Git. Cloudflare's current Wrangler configuration supports declaring required secret names so deployment can fail when they are missing. citeturn2search0turn2search3
+Secrets must be configured in Cloudflare rather than committed to Git. The Wrangler configuration declares these secret names as required so deployment can validate their presence.
