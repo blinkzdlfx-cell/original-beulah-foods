@@ -6,7 +6,7 @@ compatibility_date = "2026-09-16"
 SUPABASE_URL = "https://wzrqlquspbipvrzidcxe.supabase.co"
 
 [secrets]
-required = ["PAYSTACK_SECRET_KEY", "SUPABASE_SERVICE_ROLE_KEY"]
+required = ["PAYSTACK_SECRET_KEY", "SUPABASE_SECRET_KEY"]
 
 [assets]
 directory = "./storefront"
