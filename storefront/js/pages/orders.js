@@ -179,7 +179,7 @@ async function init() {
     await Promise.all([
       supabase
         .from("reservations")
-        .select("id,order_id,status,expires_at,created_at,updated_at")
+        .select("id,order_id,status,expires_at,created_at")
         .in("order_id", orderIds)
         .order("created_at", { ascending: false }),
       supabase
