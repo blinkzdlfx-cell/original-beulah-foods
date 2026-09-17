@@ -40,9 +40,6 @@ if (form && submit) {
         const payload = {
           delivery_fee: fee,
           is_delivery_enabled: deliveryEnabled,
-          // Free-delivery settings are no longer part of the active business model.
-          is_free_delivery_enabled: false,
-          free_delivery_threshold: null,
           is_active: active,
           updated_at: new Date().toISOString(),
         };
@@ -59,14 +56,13 @@ if (form && submit) {
           alertBox.hidden = false;
         }
         window.dispatchEvent(new CustomEvent("beulah:delivery-saved"));
-        submit.disabled = false;
-        submit.textContent = "Save delivery settings";
       } catch (error) {
         if (alertBox) {
           alertBox.textContent = error?.message || "Could not save delivery settings.";
           alertBox.className = "alert error";
           alertBox.hidden = false;
         }
+      } finally {
         submit.disabled = false;
         submit.textContent = "Save delivery settings";
       }
