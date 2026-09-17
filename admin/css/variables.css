@@ -1,0 +1,22 @@
+/* Admin design tokens — clean dashboard surface system */
+:root {
+  --color-bg: #f7f9f7;
+  --color-surface: #ffffff;
+  --color-text: #1c211e;
+  --color-text-muted: #68726c;
+  --color-accent: #3ecf8e;
+  --color-accent-dark: #23855d;
+  --color-danger: #b3413a;
+  --color-border: #dfe5e1;
+  --color-border-strong: #c9d2cc;
+  --color-surface-subtle: #f3f6f4;
+  --shadow-sm: 0 1px 2px rgba(16,24,20,.05), 0 4px 14px rgba(16,24,20,.035);
+  --shadow-md: 0 10px 30px rgba(16,24,20,.08), 0 2px 8px rgba(16,24,20,.04);
+  --font-base: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 40px;
+  --radius: 8px;
+}
