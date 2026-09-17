@@ -11,6 +11,8 @@ required = ["PAYSTACK_SECRET_KEY", "SUPABASE_SECRET_KEY"]
 [assets]
 directory = "."
 binding = "ASSETS"
+html_handling = "none"
+run_worker_first = true
 include = ["admin/**", "storefront/**"]
 
 [observability]
