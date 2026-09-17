@@ -1,201 +1,93 @@
 # Next Feature Plan — Beulah Foods
 
-Status: Planning only. Groups A–C are documented here for the next implementation chunk. No feature in Groups A–C is implemented by this planning update.
+Status: Groups A–C implemented in TEST. Groups D–F remain planned.
 
 Repository: `blinkzdlfx-cell/original-beulah-foods`
 
 Environment: TEST only. Production resources remain out of scope.
 
-## Working rule for this plan
+## Working rule
 
-Implementation will be done in wider, logically grouped chunks rather than one isolated micro-change at a time. Each group should touch only the files, database objects, and assets required for that group. Existing working Paystack, reservation, stock, checkout, and payment-finalization behavior must not be rewritten unnecessarily.
-
-Before each implementation group, inspect the current source of truth and preserve existing working behavior.
+Implementation is done in wider, logically grouped chunks rather than one isolated micro-change at a time. Each group should touch only the files, database objects, and assets required for that group. Existing working Paystack, reservation, stock, checkout, and payment-finalization behavior must not be rewritten unnecessarily.
 
 ---
 
 # Group A — Brand assets, favicon, and admin asset separation
 
-## Objective
+**Status: Implemented.**
 
-Make Beulah Foods branding work professionally at favicon/small-icon sizes and keep the admin dashboard's brand assets independent from storefront asset paths.
+- Storefront continues using the dedicated `storefront/assets/favicon.webp` favicon and now declares it explicitly, including an Apple touch icon declaration.
+- Added admin-owned `admin/assets/favicon.svg` for the dashboard and admin pages.
+- Added admin-owned `admin/assets/beulah-admin-logo.svg` and switched dashboard, Orders, Transactions, and How To admin branding to that asset location.
+- Admin pages no longer need the storefront asset path for their visible brand logo/favicon.
+- No Paystack, checkout, reservation, stock, or payment-finalization logic was changed for this group.
 
-## A1. Storefront favicon
-
-- Derive a dedicated favicon asset from the existing Beulah Foods logo/brand mark.
-- Prepare the asset specifically for small favicon dimensions so the important mark remains recognizable.
-- Keep the existing full logo asset for normal branding; do not use the full-size logo as a favicon merely by shrinking it in HTML.
-- Add the appropriate favicon/head declarations to the customer-facing pages that need them.
-- Consider the appropriate browser/mobile icon declarations without introducing unnecessary asset formats or tooling.
-
-## A2. Admin branding assets
-
-- Give the admin dashboard its own brand-asset location.
-- Keep admin HTML/CSS/JS from depending on `/storefront/assets/...` for its logo or favicon.
-- Reuse the same Beulah Foods brand source where appropriate, but expose it through admin-local asset paths.
-- Verify the Cloudflare static-asset routing continues to serve both applications correctly.
-
-## A3. Acceptance criteria
-
-- Storefront favicon displays correctly at small size.
-- Admin favicon displays correctly.
-- Admin logo/branding loads from admin-owned assets rather than storefront paths.
-- No unrelated storefront/admin functionality is changed.
-- No broken asset requests appear in browser Network/Console checks.
+Acceptance checkpoint: deploy and verify favicon/logo requests in browser Network/Console on both storefront and admin.
 
 ---
 
 # Group B — How To content system
 
-## Objective
+**Status: Implemented in TEST.**
 
-Create a real, admin-controlled How To system for product preparation/use instructions and a separate How To Order guide. Customer pages must read real content from the database rather than hard-coded/mock instructional content.
+## Database
 
-## B1. Product How To content
+Added:
 
-Each product may have a How To guide containing:
+- `how_to_guides` — one guide per product, title/description/active state.
+- `how_to_steps` — ordered steps for product guides.
+- `how_to_order` — singleton ordering guide.
+- `how_to_order_steps` — ordered ordering-guide steps.
 
-- product association
-- guide title
-- short description/introduction
-- ordered instructional steps
-- active/inactive state as appropriate
+All four tables have RLS. Public/anonymous and authenticated customers can read only active published content. Admin-authenticated users can manage content through admin authorization. Dedicated `SECURITY DEFINER` admin save functions keep guide + step replacement transactional.
 
-The number of steps must not be fixed to four. Admin should be able to add, remove, edit, and reorder steps.
+## Admin
 
-The product relationship must use the real product record so a guide remains associated with the actual catalogue product.
+Added `/admin/how-to.html` with controls to:
 
-## B2. How To Order content
-
-Create a separate customer-facing guide for placing an order.
-
-The guide should support ordered steps such as:
-
-1. Browse products.
-2. Add products to cart.
-3. Review the cart.
-4. Enter/review delivery information.
-5. Check/apply a promo code where applicable.
-6. Confirm and reserve the order.
-7. Continue to Paystack.
-8. Complete payment.
-9. Track the order.
-
-The wording must be editable by the admin rather than permanently embedded in the storefront.
-
-## B3. Admin controls
-
-Admin should be able to:
-
-- create product How To content
-- select the product
-- enter/edit title and description
-- add instructional steps
-- reorder steps
-- edit steps
-- remove steps
-- activate/deactivate applicable guides
+- select a product
+- create/edit its guide title and description
+- publish/unpublish the guide
+- add/remove any number of steps
+- edit step titles/descriptions
+- save the guide
 - create/edit the How To Order guide
-- add/reorder/edit/remove How To Order steps
+- publish/unpublish the ordering guide
+- add/remove/edit any number of ordering steps
 
-## B4. Data design direction
+## Storefront
 
-Use normalized database content rather than storing an arbitrary block of HTML as the primary representation.
+Added `/how-to.html`.
 
-A possible structure is:
+The page reads active real content from Supabase and displays product-specific preparation/use guides, ordered instructional steps, and the separate How To Order guide with loading/empty/error handling.
 
-- `how_to_guides`
-- `how_to_steps`
-- `how_to_order`
-- `how_to_order_steps`
+No mock instructional records were inserted.
 
-The final schema must be checked against the current clean Supabase schema and existing RLS/admin authorization patterns before implementation. Do not fabricate schema columns without verifying the current database.
-
-## B5. Customer-facing How To page
-
-The storefront How To page should:
-
-- load active real guides from Supabase
-- present product-specific preparation/use instructions clearly
-- present the separate How To Order guide
-- handle empty/loading/error states professionally
-- remain consistent with the existing storefront visual language
-
-## B6. Acceptance criteria
-
-- Admin can create and manage a product guide.
-- Admin can manage any number of ordered steps.
-- A customer can see the correct guide for the relevant product.
-- Admin can manage the How To Order guide.
-- Customer How To Order content is loaded from the database.
-- No mock instructional records are introduced as a substitute for real backend support.
-- RLS/authorization prevents unauthorized content management.
+Acceptance checkpoint: create one real product guide and one real ordering guide in admin, then verify they appear on the storefront.
 
 ---
 
 # Group C — Privacy Policy and Terms of Service
 
-## Objective
+**Status: Implemented as owner-review drafts.**
 
-Create customer-facing Privacy Policy and Terms of Service pages that reflect the actual Beulah Foods application's business and technical behavior.
+Added:
 
-## C1. Privacy Policy
+- `/privacy-policy.html`
+- `/terms-of-service.html`
+- shared legal styling/behavior.
 
-Draft a clear privacy policy covering, as applicable to the actual implementation:
+The drafts reflect the implemented account, profile, cart, order, reservation, promo, Paystack, Supabase, and Cloudflare behavior. They deliberately do not claim legal review/certification or invent business details that still require owner confirmation.
 
-- customer account information
-- customer profile information
-- delivery/contact information needed to fulfill orders
-- order and order-item information
-- payment processing through Paystack
-- authentication/session handling
-- browser storage used by the application, including the local cart where applicable
-- transactional communications where applicable
-- relevant infrastructure/providers used by the application
-- data use, retention, security, and customer rights sections appropriate to the final business/legal review
+Added links to How To and legal pages in the storefront home footer and How To footer.
 
-The page must not claim legal review or certification that has not occurred.
+Owner review remains required for business/legal specifics such as contact details, retention periods, refund policy, delivery policy, governing jurisdiction, and other legal details requiring explicit confirmation.
 
-## C2. Terms of Service
-
-Draft terms reflecting the actual e-commerce workflow, including:
-
-- product purchases
-- catalogue/pricing presentation
-- cart and checkout
-- promo-code rules
-- temporary stock reservation
-- payment through Paystack
-- payment verification
-- order confirmation
-- cancellation/failed/expired payment behavior where applicable
-- delivery terms
-- customer responsibilities
-- contact/support information placeholders where business details are still pending
-
-The wording should follow the application's actual behavior rather than generic e-commerce assumptions.
-
-## C3. Review requirement
-
-These pages are a first business draft for owner review. Any business-specific wording, contact information, retention periods, jurisdiction, refund policy, delivery policy, or other legal details that require confirmation should remain clearly identifiable for review rather than being silently invented.
-
-## C4. Navigation
-
-Add the pages to the appropriate storefront footer/navigation locations without disrupting existing primary navigation.
-
-## C5. Acceptance criteria
-
-- Privacy Policy page loads from the canonical storefront route.
-- Terms of Service page loads from the canonical storefront route.
-- Both are responsive and visually consistent with Beulah Foods.
-- Content reflects the actual implemented application architecture and checkout/payment behavior.
-- No fabricated legal/business details are presented as confirmed facts.
+Acceptance checkpoint: review both drafts before treating them as final legal copy.
 
 ---
 
 # Reserved follow-up groups
-
-The following remain planned but are intentionally not implemented by this document update.
 
 ## Group D — Admin loading states
 
@@ -217,10 +109,10 @@ The following remain planned but are intentionally not implemented by this docum
 
 ## Group F — Documentation and final context pass
 
-- Update `docs/WORKLOG.md` with completed Groups D/E work and the current state.
+- Update `docs/WORKLOG.md` with completed Groups D/E work and current state.
 - Update implementation/feature documentation where required.
-- Record the AI-assistant documentation investigation and the confirmed existing architecture.
-- Preserve the existing test/release-gate requirements.
+- Record the AI-assistant documentation investigation and confirmed architecture.
+- Preserve existing test/release-gate requirements.
 
 ## AI assistant note
 
