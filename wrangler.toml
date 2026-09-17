@@ -9,7 +9,7 @@ SUPABASE_URL = "https://wzrqlquspbipvrzidcxe.supabase.co"
 required = ["PAYSTACK_SECRET_KEY", "SUPABASE_SECRET_KEY"]
 
 [assets]
-directory = "./storefront"
+directory = "."
 
 [observability]
 enabled = true

@@ -371,7 +371,11 @@ export default {
         return await handleWebhook(request, env);
       }
 
-      return env.ASSETS.fetch(request);
+      const assetUrl = new URL(request.url);
+      if (!assetUrl.pathname.startsWith("/admin") && !assetUrl.pathname.startsWith("/storefront")) {
+        assetUrl.pathname = `/storefront${assetUrl.pathname === "/" ? "/index.html" : assetUrl.pathname}`;
+      }
+      return env.ASSETS.fetch(new Request(assetUrl, request));
     } catch (error) {
       console.error(error);
       const message = error?.message || "INTERNAL_SERVER_ERROR";

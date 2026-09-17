@@ -377,10 +377,13 @@ function renderPreview(src) {
   productPreview.innerHTML = `<img src="${escapeAttribute(src)}" alt="Product image preview">`;
 }
 
+// Delivery settings
 async function loadDeliverySettings() {
   const { data, error } = await supabase
     .from("delivery_settings")
-    .select("id,delivery_fee,free_delivery_threshold,is_delivery_enabled,is_free_delivery_enabled,is_active,updated_at")
+    .select(
+      "id,delivery_fee,free_delivery_threshold,is_delivery_enabled,is_free_delivery_enabled,is_active,updated_at",
+    )
     .order("updated_at", { ascending: false });
   if (error) throw error;
   deliveryRows.innerHTML =
@@ -499,10 +502,13 @@ async function deleteDelivery(id) {
   else await loadDeliverySettings();
 }
 
+// Promo codes
 async function loadPromos() {
   const { data, error } = await supabase
     .from("promo_codes")
-    .select("id,code,discount_type,discount_value,minimum_order_amount,maximum_discount_amount,starts_at,expires_at,usage_limit,usage_count,is_active")
+    .select(
+      "id,code,discount_type,discount_value,minimum_order_amount,maximum_discount_amount,starts_at,expires_at,usage_limit,usage_count,is_active",
+    )
     .order("created_at", { ascending: false });
   if (error) throw error;
   promoRows.innerHTML =
