@@ -382,7 +382,7 @@ async function loadDeliverySettings() {
   const { data, error } = await supabase
     .from("delivery_settings")
     .select(
-      "id,delivery_fee,free_delivery_threshold,is_delivery_enabled,is_free_delivery_enabled,is_active,updated_at",
+      "id,delivery_fee,is_delivery_enabled,is_active,updated_at",
     )
     .order("updated_at", { ascending: false });
   if (error) throw error;
@@ -421,6 +421,7 @@ async function loadDeliverySettings() {
 }
 
 deliveryForm.addEventListener("submit", async (event) => {
+  return;
   event.preventDefault();
   clearAlert(appAlert);
   const id = document.getElementById("delivery-id").value;
