@@ -24,9 +24,10 @@ Verified:
 - RLS policies protect customer-owned orders, order items, payments and profiles.
 - Admin policies use `private.is_admin()`.
 
-### Database correction applied
+### Database corrections applied
 
-`private.create_paystack_payment_attempt(uuid)` was changed to reuse an existing pending payment attempt for the same order. This prevents repeated initialization requests from creating multiple pending payment records for one order.
+1. `private.create_paystack_payment_attempt(uuid)` was changed to reuse an existing pending payment attempt for the same order. This prevents repeated initialization requests from creating multiple pending payment records for one order.
+2. `private.finalize_paystack_payment(...)` was hardened so Paystack `pending`, `ongoing`, and `processing` statuses remain `pending` instead of being incorrectly converted to `failed`. `abandoned` remains `abandoned`; other non-success terminal states become `failed`.
 
 ### Cloudflare Worker implemented
 
@@ -53,7 +54,7 @@ The payment callback now calls the Cloudflare verification boundary with `POST /
 
 ### Admin correction applied
 
-Connected the admin Orders and Transactions pages to the authoritative Supabase tables with authenticated admin checks and pagination. No mock records are displayed.
+Connected the admin Orders and Transactions pages to the authoritative Supabase tables with authenticated admin checks and pagination. No mock records are displayed. The Orders page uses the database's actual order-to-user relationship and snapshot delivery name rather than assuming a direct orders-to-profile foreign key.
 
 ### Configuration correction applied
 
@@ -61,6 +62,8 @@ Connected the admin Orders and Transactions pages to the authoritative Supabase 
 
 - `PAYSTACK_SECRET_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
+
+A repository `.gitignore` now protects `.env*`, `.dev.vars*`, and Wrangler local state while retaining `.env.example`.
 
 The secrets are intentionally not stored in Git.
 
@@ -90,7 +93,7 @@ These cannot be safely committed to the repository:
 - callback verification
 - webhook finalization
 - callback/webhook race/idempotency
-- failed/abandoned payment handling
+- failed/abandoned/pending payment handling
 - late-payment handling
 - admin authentication and data reads/writes
 - final stock/order/reservation/payment invariants
