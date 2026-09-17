@@ -138,3 +138,59 @@ These cannot be safely committed to the repository:
 - Easter test
 
 Production resources remain out of scope until the complete test environment passes the release gate.
+
+## 2026-09-17 — Clean storefront, admin, checkout RPC, and promo validation corrections
+
+### Storefront asset routing
+
+- Root-level storefront HTML routes were intentionally preserved.
+- Fixed the Cloudflare Worker asset fallback so root-relative storefront CSS, JavaScript, images, and SVG requests map back to `/storefront/...` in the static asset bundle.
+- Live Beulah Foods homepage verification confirmed the affected CSS, JavaScript, hero image, and SVG asset requests return successfully with no observed 404s.
+- Production resources were not modified.
+
+### Product image storage and admin schema alignment
+
+- Created the public `product-images` Supabase Storage bucket with a 5 MB limit and JPEG/PNG/WebP MIME restrictions.
+- Restricted object writes to authenticated admins while allowing public reads for storefront product images.
+- Updated clean admin product handling from the obsolete `image_url` field to authoritative `image_path` storage paths.
+- Removed obsolete `reserved_quantity` product reads from the clean admin inventory flow and calculate available stock from active, unexpired reservation items instead.
+- Added the missing `admin_users.display_name` field required by the clean admin interface.
+- Removed temporary migration/adaptation workflows after their changes completed.
+
+### Checkout 403 root cause and correction
+
+The customer checkout page was sending the authenticated Supabase RPC request correctly, but the public `create_pending_order` wrapper was not itself `SECURITY DEFINER` even though the underlying private function was. The authenticated browser therefore received HTTP 403 when calling `/rest/v1/rpc/create_pending_order`.
+
+Corrected the customer-facing checkout wrappers so they execute the intended private `SECURITY DEFINER` functions while retaining the intended execution boundary:
+
+- anonymous users: no execute
+- authenticated customers: execute
+- service role: execute
+
+The corrected wrappers include `create_pending_order`, `create_paystack_payment_attempt`, `cancel_pending_order`, `expire_customer_reservation`, and `retry_expired_pending_order`.
+
+The authenticated pending-order path was then tested successfully. The test produced an authoritative order total, reservation ID, order number, and 15-minute expiration; the verification test was rolled back so it did not leave an unwanted test order/reservation behind.
+
+### Current checkout acceptance state
+
+The browser has now successfully created a real pending order and active 15-minute reservation through the clean TEST database. The checkout UI changes to the payment continuation state and maintains the reservation countdown.
+
+The next payment acceptance checkpoint is Paystack test-mode initialization. Paystack must not be treated as successful until server-side initialization, provider response, callback verification, webhook finalization, and idempotency are all verified.
+
+### Promo-code validation correction
+
+Added an authenticated `public.validate_promo(p_code text, p_subtotal numeric)` wrapper around the existing private authoritative promo validation function.
+
+Security boundary:
+
+- anonymous users: no execute
+- authenticated customers: execute
+- service role: execute
+- the private validator remains the authoritative implementation
+- validation does not increment promo usage
+
+The checkout page now has a **Check promo code** button. It validates the entered code against the authoritative database rules before order creation, including active state, start/end time, usage limit, minimum order amount, percentage/fixed discount calculation, maximum discount, and subtotal cap. A valid result updates the displayed discount and total locally for review; the actual `create_pending_order` call still re-validates the promo server-side, so the button is only a pre-check and never becomes the source of truth.
+
+The clean TEST database currently contains `WELCOME1`, an active percentage promo with a 5% discount and no minimum order amount or maximum discount configured.
+
+Production resources remain out of scope.
