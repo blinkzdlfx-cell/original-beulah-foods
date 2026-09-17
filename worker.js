@@ -24,11 +24,32 @@ function requireSecret(env, name) {
   return value;
 }
 
+function ngnToKobo(value) {
+  const text = String(value ?? "").trim();
+  if (!/^\d+(?:\.\d{1,2})?$/.test(text)) return null;
+  const [naira, fraction = ""] = text.split(".");
+  const kobo = BigInt(naira) * 100n + BigInt((fraction + "00").slice(0, 2));
+  if (kobo <= 0n || kobo > BigInt(Number.MAX_SAFE_INTEGER)) return null;
+  return Number(kobo);
+}
+
+function koboToNgn(kobo) {
+  if (typeof kobo === "number") {
+    if (!Number.isSafeInteger(kobo) || kobo < 0) return null;
+    return `${Math.floor(kobo / 100)}.${String(kobo % 100).padStart(2, "0")}`;
+  }
+  const text = String(kobo ?? "").trim();
+  if (!/^\d+$/.test(text)) return null;
+  const value = BigInt(text);
+  return `${value / 100n}.${String(value % 100n).padStart(2, "0")}`;
+}
+
 async function supabaseRequest(env, path, { method = "GET", body, accessToken } = {}) {
+  const secret = requireSecret(env, "SUPABASE_SECRET_KEY");
   const headers = {
-    apikey: requireSecret(env, "SUPABASE_SERVICE_ROLE_KEY"),
-    Authorization: `Bearer ${accessToken || requireSecret(env, "SUPABASE_SERVICE_ROLE_KEY")}`,
+    apikey: secret,
   };
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
   if (body !== undefined) headers["Content-Type"] = "application/json";
 
   const response = await fetch(`${env.SUPABASE_URL}${path}`, {
@@ -52,7 +73,7 @@ async function authenticateCustomer(request, env) {
 
   const response = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, {
     headers: {
-      apikey: requireSecret(env, "SUPABASE_SERVICE_ROLE_KEY"),
+      apikey: requireSecret(env, "SUPABASE_SECRET_KEY"),
       Authorization: `Bearer ${token}`,
     },
   });
@@ -66,7 +87,7 @@ async function callCustomerRpc(env, functionName, args, accessToken) {
   const response = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/${functionName}`, {
     method: "POST",
     headers: {
-      apikey: requireSecret(env, "SUPABASE_SERVICE_ROLE_KEY"),
+      apikey: requireSecret(env, "SUPABASE_SECRET_KEY"),
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
@@ -144,9 +165,10 @@ async function initializePaystack(request, env) {
     return json({ error: code }, code === "UNAUTHENTICATED" ? 401 : 409);
   }
 
-  const amountNgn = Number(payment?.amount);
+  const amountNgn = String(payment?.amount ?? "").trim();
+  const amountKobo = ngnToKobo(amountNgn);
   const reference = String(payment?.reference || "");
-  if (!Number.isFinite(amountNgn) || amountNgn <= 0 || !reference) {
+  if (amountKobo === null || !reference) {
     return json({ error: "PAYMENT_ATTEMPT_INVALID" }, 500);
   }
 
@@ -155,7 +177,7 @@ async function initializePaystack(request, env) {
     method: "POST",
     body: JSON.stringify({
       email: auth.user.email,
-      amount: String(Math.round(amountNgn * 100)),
+      amount: String(amountKobo),
       currency: "NGN",
       reference,
       callback_url: callbackUrl,
@@ -193,10 +215,13 @@ async function getPaymentForCustomer(env, reference, userId) {
 }
 
 async function finalizePayment(env, paymentData) {
+  const amountNgn = koboToNgn(paymentData.amount_kobo);
+  if (amountNgn === null) throw new Error("INVALID_PROVIDER_AMOUNT");
+
   const { response, data } = await callServiceRpc(env, "finalize_paystack_payment", {
     p_reference: paymentData.reference,
     p_provider_transaction_id: paymentData.provider_transaction_id == null ? null : String(paymentData.provider_transaction_id),
-    p_amount_ngn: Number(paymentData.amount_kobo) / 100,
+    p_amount_ngn: amountNgn,
     p_currency: paymentData.currency || "NGN",
     p_provider_status: String(paymentData.provider_status || ""),
     p_metadata: paymentData.metadata && typeof paymentData.metadata === "object" ? paymentData.metadata : {},
