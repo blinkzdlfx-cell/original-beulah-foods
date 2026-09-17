@@ -27,6 +27,8 @@
 - [x] Implement idempotent payment finalization.
 - [x] Verify RLS and privileged function grants.
 - [x] Make payment-attempt creation idempotent for repeated initialization requests.
+- [x] Preserve Paystack pending/ongoing/processing statuses instead of converting them prematurely to failed.
+- [ ] Mirror the complete clean database migration history into the repository so GitHub can reproduce the current Supabase schema from scratch.
 
 ## Phase 3 — Cloudflare payment boundary
 
@@ -83,6 +85,8 @@
 
 ## Phase 7 — release gate
 
+- [ ] Mirror/verify the complete database migration source of truth.
+- [ ] Configure and verify all external Worker/Paystack secrets and URLs.
 - [ ] All automated/static checks pass.
 - [ ] All external integrations pass in the test environment.
 - [ ] No unresolved database/repository contract inconsistencies remain.
