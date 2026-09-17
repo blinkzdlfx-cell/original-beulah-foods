@@ -1,0 +1,36 @@
+name: Adapt admin product image fields
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  adapt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Align copied TEST admin with clean product schema
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('admin/js/admin.js')
+          text = path.read_text()
+          text = text.replace('image_url', 'image_path')
+          text = text.replace(',reserved_quantity', '')
+          path.write_text(text)
+          PY
+          node --check admin/js/admin.js
+      - name: Commit schema alignment
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add admin/js/admin.js
+          if git diff --cached --quiet; then
+            echo "No admin schema changes required."
+            exit 0
+          fi
+          git commit -m "fix: align admin product images with clean schema"
+          git push
