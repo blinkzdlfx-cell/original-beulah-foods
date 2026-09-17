@@ -17,6 +17,7 @@
 - [x] Add Cloudflare static Worker configuration without payment mocks.
 - [x] Review checkout/payment page modules against the new Cloudflare boundary.
 - [x] Remove direct customer-side Paystack integration; checkout now calls the Worker boundary.
+- [x] Rename browser Supabase credential terminology from legacy `anon` to `publishable`.
 
 ## Phase 2 — new Supabase
 
@@ -36,12 +37,13 @@
 - [x] Add `/api/paystack/initialize`.
 - [x] Add `/api/paystack/verify`.
 - [x] Add `/api/paystack/webhook`.
-- [x] Declare Paystack and Supabase service credentials as required Worker secrets.
+- [x] Replace legacy Supabase service-role secret usage with the current `SUPABASE_SECRET_KEY` backend secret model.
 - [x] Authenticate customer requests at the Worker boundary with Supabase Auth.
-- [x] Authenticate Worker-to-Supabase privileged requests with the service-role credential.
+- [x] Authenticate Worker-to-Supabase privileged requests with the Supabase secret key via `apikey`; never send the non-JWT secret as `Authorization: Bearer`.
 - [x] Keep payment finalization authoritative in Supabase.
-- [x] Validate Paystack webhook HMAC SHA-512 signatures before processing.
-- [x] Convert Paystack kobo amounts to NGN before Supabase finalization.
+- [x] Validate Paystack webhook HMAC SHA-512 signatures over the raw request body before processing.
+- [x] Convert authoritative NGN amounts to integer kobo exactly before Paystack initialization.
+- [x] Convert Paystack integer kobo amounts back to exact two-decimal NGN before database finalization.
 - [x] Keep callback verification and webhook finalization on the same idempotent DB finalizer.
 
 ## Phase 4 — integration
@@ -50,8 +52,8 @@
 - [x] Connect the Worker code to the repository and static assets.
 - [x] Configure the callback route in the Worker implementation as `<request-origin>/payment-callback.html`.
 - [ ] Configure the Paystack dashboard webhook URL to `https://<storefront-origin>/api/paystack/webhook`.
-- [ ] Configure `PAYSTACK_SECRET_KEY` in the deployed Cloudflare Worker.
-- [ ] Configure `SUPABASE_SERVICE_ROLE_KEY` in the deployed Cloudflare Worker.
+- [ ] Configure `PAYSTACK_SECRET_KEY` in the deployed Cloudflare Worker using the Paystack TEST key.
+- [ ] Configure `SUPABASE_SECRET_KEY` in the deployed Cloudflare Worker using the new Supabase secret key.
 - [ ] Verify deployed Worker routes from the public storefront origin.
 - [ ] Verify every external URL and secret location before live money movement.
 
