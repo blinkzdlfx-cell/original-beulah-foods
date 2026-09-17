@@ -7,11 +7,11 @@ button { cursor: pointer; }
 .hidden { display: none !important; }
 
 .admin-shell { min-height: 100vh; }
-.admin-header { position: sticky; top: 0; z-index: 50; background: rgba(255,255,255,.97); border-bottom: 1px solid var(--admin-border); }
+.admin-header { position: sticky; top: 0; z-index: 50; background: rgba(255,255,255,.98); border-bottom: 1px solid var(--admin-border); }
 .admin-header__inner { width: min(1180px, calc(100% - 40px)); min-height: 68px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .admin-brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-size: .92rem; font-weight: 750; letter-spacing: -.02em; }
 .admin-brand b { font-weight: 500; color: var(--admin-muted); }
-.admin-brand__mark { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 9px; background: var(--admin-accent); color: #fff; font-size: .68rem; font-weight: 800; }
+.admin-brand__logo { width: 36px; height: 36px; display: block; object-fit: contain; border-radius: 8px; }
 .admin-menu-toggle { display: none; width: 40px; height: 40px; border: 1px solid var(--admin-border); border-radius: 9px; background: #fff; }
 .admin-menu-toggle span { display: block; width: 17px; height: 2px; margin: 4px auto; background: currentColor; }
 .admin-menu { display: flex; align-items: center; gap: 20px; }
@@ -32,6 +32,12 @@ button { cursor: pointer; }
 
 .alert { margin-bottom: 18px; padding: 10px 12px; border: 1px solid var(--admin-border); border-radius: 8px; background: #fff; font-size: .78rem; line-height: 1.45; }
 .alert.error { border-color: #efcbc7; background: #fff7f6; color: var(--admin-danger); }
+
+.admin-login-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 26px; }
+.admin-login-brand img { width: 44px; height: 44px; object-fit: contain; border-radius: 10px; }
+.admin-login-brand div { display: grid; gap: 2px; }
+.admin-login-brand strong { font-size: .9rem; }
+.admin-login-brand span { color: var(--admin-muted); font-size: .68rem; }
 
 .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 16px; }
 .metric { min-height: 92px; padding: 16px; border: 1px solid var(--admin-border); border-radius: 10px; background: #fff; }
