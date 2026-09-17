@@ -20,30 +20,24 @@ function formatStatus(value) {
 }
 
 function paymentLabel(value) {
-  const labels = { pending: "Pending", successful: "Successful", failed: "Failed" };
+  const labels = { pending: "Pending", successful: "Successful", failed: "Failed", abandoned: "Abandoned", expired: "Expired", late_payment: "Late payment", manual_resolution_required: "Manual resolution" };
   return labels[value] || formatStatus(value);
 }
 
 function orderLabel(value) {
-  const labels = {
-    pending_payment: "Pending payment",
-    paid: "Paid",
-    processing: "Processing",
-    completed: "Completed",
-    cancelled: "Cancelled",
-  };
+  const labels = { pending_payment: "Pending payment", paid: "Paid", confirmed: "Confirmed", cancelled: "Cancelled" };
   return labels[value] || formatStatus(value);
 }
 
 function paymentClass(value) {
   if (value === "successful") return "is-paid";
-  if (value === "failed") return "is-cancelled";
+  if (["failed", "abandoned", "expired", "late_payment", "manual_resolution_required"].includes(value)) return "is-cancelled";
   return "is-pending";
 }
 
 function orderClass(value) {
   if (value === "cancelled") return "is-cancelled";
-  if (value === "paid" || value === "processing" || value === "completed") return "is-paid";
+  if (["paid", "confirmed"].includes(value)) return "is-paid";
   return "is-pending";
 }
 
@@ -56,10 +50,7 @@ function renderPagination(totalPages) {
   previous.type = "button";
   previous.textContent = "Previous";
   previous.disabled = page <= 1;
-  previous.onclick = () => {
-    page -= 1;
-    load();
-  };
+  previous.onclick = () => { page -= 1; load(); };
 
   const label = document.createElement("span");
   label.className = "admin-pagination__label";
@@ -70,10 +61,7 @@ function renderPagination(totalPages) {
   next.type = "button";
   next.textContent = "Next";
   next.disabled = page >= totalPages;
-  next.onclick = () => {
-    page += 1;
-    load();
-  };
+  next.onclick = () => { page += 1; load(); };
 
   pagination.append(previous, label, next);
 }
@@ -85,7 +73,7 @@ async function load() {
   const { data, error, count } = await supabase
     .from("payments")
     .select(
-      "id,order_id,provider,provider_reference,amount,status,created_at,orders(order_number,status,payment_status)",
+      "id,order_id,provider,reference,amount,status,created_at,orders(order_number,status,payment_status,promo_code,discount_amount)",
       { count: "exact" },
     )
     .order("created_at", { ascending: false })
@@ -106,19 +94,23 @@ async function load() {
         const orderNumber = order?.order_number || `BF-${String(payment.order_id).slice(0, 8)}`;
         const paymentStatus = payment.status || "pending";
         const orderStatus = order?.status || "pending_payment";
+        const promo = order?.promo_code
+          ? `<strong>${escapeHtml(order.promo_code)}</strong><small>Discount ${naira.format(Number(order.discount_amount || 0))}</small>`
+          : "—";
 
         return `<tr>
       <td><strong>${escapeHtml(String(payment.id).slice(0, 8))}</strong></td>
       <td><strong>${escapeHtml(orderNumber)}</strong><small class="admin-order-id">${escapeHtml(String(payment.order_id).slice(0, 8))}</small></td>
       <td>${escapeHtml(payment.provider || "—")}</td>
-      <td>${escapeHtml(payment.provider_reference || "—")}</td>
+      <td>${escapeHtml(payment.reference || "—")}</td>
       <td>${naira.format(Number(payment.amount))}</td>
+      <td>${promo}</td>
       <td><span class="admin-status-badge ${paymentClass(paymentStatus)}">${escapeHtml(paymentLabel(paymentStatus))}</span></td>
       <td><span class="admin-status-badge ${orderClass(orderStatus)}">${escapeHtml(orderLabel(orderStatus))}</span></td>
       <td>${escapeHtml(new Date(payment.created_at).toLocaleString("en-NG"))}</td>
     </tr>`;
       })
-      .join("") || '<tr><td colspan="8">No transactions yet.</td></tr>';
+      .join("") || '<tr><td colspan="9">No transactions yet.</td></tr>';
 
   renderPagination(totalPages);
 }
