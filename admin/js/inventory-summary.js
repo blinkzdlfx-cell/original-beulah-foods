@@ -1,6 +1,6 @@
 import { supabase } from "./lib/supabaseClient.js";
 
-const CACHE_KEY = "beulah-admin-available-products-v1";
+const CACHE_KEY = "beulah-admin-available-products-v2";
 const CACHE_TTL_MS = 15 * 1000;
 let refreshPromise = null;
 
@@ -40,18 +40,37 @@ async function fetchAvailableProducts(card) {
   if (refreshPromise) return refreshPromise;
 
   refreshPromise = (async () => {
-    const { data, error } = await supabase
-      .from("products")
-      .select("stock_quantity,reserved_quantity")
-      .eq("is_active", true);
-    if (error) throw error;
+    const [{ data: products, error: productError }, { data: reservations, error: reservationError }] =
+      await Promise.all([
+        supabase.from("products").select("id,stock_quantity").eq("is_active", true),
+        supabase
+          .from("reservation_items")
+          .select("product_id,quantity,reservations!inner(status,expires_at)")
+          .eq("reservations.status", "active")
+          .gt("reservations.expires_at", new Date().toISOString()),
+      ]);
 
-    const available = (data || []).reduce(
-      (total, item) =>
+    if (productError) throw productError;
+    if (reservationError) throw reservationError;
+
+    const reservedByProduct = new Map();
+    for (const row of reservations || []) {
+      reservedByProduct.set(
+        row.product_id,
+        (reservedByProduct.get(row.product_id) || 0) + (Number(row.quantity) || 0),
+      );
+    }
+
+    const available = (products || []).reduce(
+      (total, product) =>
         total +
-        Math.max(0, (Number(item.stock_quantity) || 0) - (Number(item.reserved_quantity) || 0)),
+        Math.max(
+          0,
+          (Number(product.stock_quantity) || 0) - (reservedByProduct.get(product.id) || 0),
+        ),
       0,
     );
+
     writeCache(available);
     render(card, available);
     return available;
@@ -77,8 +96,8 @@ async function refreshAvailableProducts({ force = false } = {}) {
   try {
     await fetchAvailableProducts(card);
   } catch (error) {
-    console.error("Could not load available product count", error);
-    if (!cached) card.textContent = "—";
+    console.warn("Could not refresh available product count", error);
+    if (!cached) card.textContent = "0";
   }
 }
 
