@@ -39,11 +39,9 @@ Shop
 
 ## Current implementation evidence
 
-The checkout page initially renders the `Confirm order & reserve items` action. On its first submission it calls the Supabase `create_pending_order` RPC, receives the order/reservation result, shows the reservation countdown, and changes the action to `Continue to payment`. Only a later explicit submission calls `/api/paystack/initialize`. fileciteturn184file0L2-L2
+The checkout implementation follows the sequence above: the first checkout submission creates the pending order/reservation and changes the action to `Continue to payment`; only a later explicit submission calls `/api/paystack/initialize`.
 
-The Cloudflare initialize route calls the database `create_paystack_payment_attempt` operation only after receiving an order ID, then initializes Paystack using the authoritative payment amount returned by the database. fileciteturn180file0L2-L2
-
-The checkout HTML also explicitly describes the review stage as occurring before reservation/payment and labels the first action `Confirm order & reserve items`. fileciteturn181file0L2-L2
+The Cloudflare initialize route accepts an order ID, creates/reuses the payment attempt through the database, obtains the authoritative NGN amount, converts it to kobo, and then initializes Paystack.
 
 ## Verification requirement
 
