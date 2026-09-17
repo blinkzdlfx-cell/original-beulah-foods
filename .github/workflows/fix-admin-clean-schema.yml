@@ -8,18 +8,15 @@ on:
 jobs:
   fix:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
 
-      - name: Patch admin schema contracts
-        shell: python
+      - name: Patch admin files
         run: |
+          python3 - <<'PY'
           from pathlib import Path
-
-          inventory = Path('admin/js/inventory-summary.js')
-          inventory.write_text('''import { supabase } from "./lib/supabaseClient.js";
+          p = Path('admin/js/inventory-summary.js')
+          p.write_text('''import { supabase } from "./lib/supabaseClient.js";
 
 const CACHE_KEY = "beulah-admin-available-products-v2";
 const CACHE_TTL_MS = 15 * 1000;
@@ -32,83 +29,52 @@ function readCache() {
     const parsed = JSON.parse(raw);
     if (!Number.isFinite(parsed.value) || !Number.isFinite(parsed.timestamp)) return null;
     return parsed;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 function writeCache(value) {
-  try {
-    sessionStorage.setItem(CACHE_KEY, JSON.stringify({ value, timestamp: Date.now() }));
-  } catch {}
+  try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ value, timestamp: Date.now() })); } catch {}
 }
 
 function invalidateCache() {
-  try {
-    sessionStorage.removeItem(CACHE_KEY);
-  } catch {}
+  try { sessionStorage.removeItem(CACHE_KEY); } catch {}
 }
 
-function render(card, value) {
-  card.textContent = String(value);
-}
+function render(card, value) { card.textContent = String(value); }
 
 async function fetchAvailableProducts(card) {
   if (refreshPromise) return refreshPromise;
-
   refreshPromise = (async () => {
-    const [{ data: products, error: productError }, { data: reservations, error: reservationError }] =
-      await Promise.all([
-        supabase.from("products").select("id,stock_quantity").eq("is_active", true),
-        supabase
-          .from("reservation_items")
-          .select("product_id,quantity,reservations!inner(status,expires_at)")
-          .eq("reservations.status", "active")
-          .gt("reservations.expires_at", new Date().toISOString()),
-      ]);
-
+    const [{ data: products, error: productError }, { data: reservations, error: reservationError }] = await Promise.all([
+      supabase.from("products").select("id,stock_quantity").eq("is_active", true),
+      supabase.from("reservation_items").select("product_id,quantity,reservations!inner(status,expires_at)").eq("reservations.status", "active").gt("reservations.expires_at", new Date().toISOString()),
+    ]);
     if (productError) throw productError;
     if (reservationError) throw reservationError;
 
     const reservedByProduct = new Map();
     for (const row of reservations || []) {
-      reservedByProduct.set(
-        row.product_id,
-        (reservedByProduct.get(row.product_id) || 0) + (Number(row.quantity) || 0),
-      );
+      reservedByProduct.set(row.product_id, (reservedByProduct.get(row.product_id) || 0) + (Number(row.quantity) || 0));
     }
 
     const available = (products || []).reduce(
-      (total, product) =>
-        total + Math.max(
-          0,
-          (Number(product.stock_quantity) || 0) - (reservedByProduct.get(product.id) || 0),
-        ),
+      (total, product) => total + Math.max(0, (Number(product.stock_quantity) || 0) - (reservedByProduct.get(product.id) || 0)),
       0,
     );
-
     writeCache(available);
     render(card, available);
     return available;
   })();
-
-  try {
-    return await refreshPromise;
-  } finally {
-    refreshPromise = null;
-  }
+  try { return await refreshPromise; } finally { refreshPromise = null; }
 }
 
 async function refreshAvailableProducts({ force = false } = {}) {
   const card = document.getElementById("available-product-count");
   if (!card) return;
-
   const cached = readCache();
   const cacheIsFresh = cached && Date.now() - cached.timestamp < CACHE_TTL_MS;
-
   if (!force && cached) render(card, cached.value);
   if (!force && cacheIsFresh) return;
-
   try {
     await fetchAvailableProducts(card);
   } catch (error) {
@@ -120,18 +86,10 @@ async function refreshAvailableProducts({ force = false } = {}) {
 function init() {
   const app = document.getElementById("admin-app");
   if (!app) return;
-
-  const refresh = () => {
-    if (!app.classList.contains("hidden")) refreshAvailableProducts();
-  };
-
+  const refresh = () => { if (!app.classList.contains("hidden")) refreshAvailableProducts(); };
   const forceRefresh = () => {
-    if (!app.classList.contains("hidden")) {
-      invalidateCache();
-      refreshAvailableProducts({ force: true });
-    }
+    if (!app.classList.contains("hidden")) { invalidateCache(); refreshAvailableProducts({ force: true }); }
   };
-
   refresh();
   window.addEventListener("beulah:admin-inventory-refresh", forceRefresh);
   window.addEventListener("beulah:delivery-saved", refresh);
@@ -140,15 +98,12 @@ function init() {
   setInterval(refresh, 30000);
 }
 
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", init, { once: true });
-} else {
-  init();
-}
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
+else init();
 ''', encoding='utf-8')
 
-          delivery = Path('admin/js/delivery-controls.js')
-          delivery.write_text('''import { supabase } from "./lib/supabaseClient.js";
+          p = Path('admin/js/delivery-controls.js')
+          p.write_text('''import { supabase } from "./lib/supabaseClient.js";
 
 const form = document.getElementById("delivery-form");
 const submit = document.getElementById("delivery-submit");
@@ -158,58 +113,28 @@ if (form && submit) {
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     event.stopImmediatePropagation();
-
     const id = document.getElementById("delivery-id").value;
     const deliveryEnabled = document.getElementById("delivery-enabled").checked;
     const active = document.getElementById("delivery-active").checked;
     const feeValue = document.getElementById("delivery-fee").value.trim();
-
     try {
-      if (deliveryEnabled && feeValue === "") {
-        throw new Error("Enter a delivery fee or turn off delivery.");
-      }
-
+      if (deliveryEnabled && feeValue === "") throw new Error("Enter a delivery fee or turn off delivery.");
       const fee = feeValue === "" ? null : Number(feeValue);
-      if (fee !== null && (!Number.isFinite(fee) || fee < 0)) {
-        throw new Error("Enter a valid delivery fee.");
-      }
-
+      if (fee !== null && (!Number.isFinite(fee) || fee < 0)) throw new Error("Enter a valid delivery fee.");
       submit.disabled = true;
       submit.textContent = "Saving…";
-
       if (active) {
-        const { error } = await supabase
-          .from("delivery_settings")
-          .update({ is_active: false, updated_at: new Date().toISOString() })
-          .eq("is_active", true);
+        const { error } = await supabase.from("delivery_settings").update({ is_active: false, updated_at: new Date().toISOString() }).eq("is_active", true);
         if (error) throw error;
       }
-
-      const payload = {
-        delivery_fee: fee,
-        is_delivery_enabled: deliveryEnabled,
-        is_active: active,
-        updated_at: new Date().toISOString(),
-      };
-
-      const query = id
-        ? supabase.from("delivery_settings").update(payload).eq("id", id)
-        : supabase.from("delivery_settings").insert(payload);
+      const payload = { delivery_fee: fee, is_delivery_enabled: deliveryEnabled, is_active: active, updated_at: new Date().toISOString() };
+      const query = id ? supabase.from("delivery_settings").update(payload).eq("id", id) : supabase.from("delivery_settings").insert(payload);
       const { error } = await query;
       if (error) throw error;
-
-      if (alertBox) {
-        alertBox.textContent = "Delivery settings saved.";
-        alertBox.className = "alert";
-        alertBox.hidden = false;
-      }
+      if (alertBox) { alertBox.textContent = "Delivery settings saved."; alertBox.className = "alert"; alertBox.hidden = false; }
       window.dispatchEvent(new CustomEvent("beulah:delivery-saved"));
     } catch (error) {
-      if (alertBox) {
-        alertBox.textContent = error?.message || "Could not save delivery settings.";
-        alertBox.className = "alert error";
-        alertBox.hidden = false;
-      }
+      if (alertBox) { alertBox.textContent = error?.message || "Could not save delivery settings."; alertBox.className = "alert error"; alertBox.hidden = false; }
     } finally {
       submit.disabled = false;
       submit.textContent = "Save delivery settings";
@@ -218,34 +143,21 @@ if (form && submit) {
 }
 ''', encoding='utf-8')
 
-          admin = Path('admin/js/admin.js')
-          text = admin.read_text(encoding='utf-8')
-          text = text.replace(
-              '"id,delivery_fee,free_delivery_threshold,is_delivery_enabled,is_free_delivery_enabled,is_active,updated_at"',
-              '"id,delivery_fee,is_delivery_enabled,is_active,updated_at"',
-          )
-          text = text.replace(
-              'is_free_delivery_enabled: false,\n          free_delivery_threshold: null,\n',
-              '',
-          )
-          admin.write_text(text, encoding='utf-8')
+          p = Path('admin/js/admin.js')
+          text = p.read_text(encoding='utf-8')
+          text = text.replace('"id,delivery_fee,free_delivery_threshold,is_delivery_enabled,is_free_delivery_enabled,is_active,updated_at"', '"id,delivery_fee,is_delivery_enabled,is_active,updated_at"')
+          text = text.replace('is_free_delivery_enabled: false,\n          free_delivery_threshold: null,\n', '')
+          p.write_text(text, encoding='utf-8')
 
-          index = Path('admin/index.html')
-          html = index.read_text(encoding='utf-8')
-          html = html.replace('src="js/admin.js"', 'src="js/admin.js?v=20260917-2"')
-          html = html.replace('src="js/inventory-summary.js"', 'src="js/inventory-summary.js?v=20260917-2"')
-          html = html.replace('src="js/delivery-controls.js"', 'src="js/delivery-controls.js?v=20260917-2"')
-          index.write_text(html, encoding='utf-8')
+          p = Path('admin/index.html')
+          text = p.read_text(encoding='utf-8')
+          text = text.replace('src="js/admin.js"', 'src="js/admin.js?v=20260917-3"')
+          text = text.replace('src="js/inventory-summary.js"', 'src="js/inventory-summary.js?v=20260917-3"')
+          text = text.replace('src="js/delivery-controls.js"', 'src="js/delivery-controls.js?v=20260917-3"')
+          p.write_text(text, encoding='utf-8')
+          PY
 
-      - name: Validate generated files
-        shell: bash
-        run: |
-          grep -q 'id,delivery_fee,is_delivery_enabled,is_active,updated_at' admin/js/admin.js
-          grep -q 'products.*stock_quantity' admin/js/inventory-summary.js
-          grep -q 'admin.js?v=20260917-2' admin/index.html
-
-      - name: Commit fixes
-        shell: bash
+      - name: Commit patched files
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
