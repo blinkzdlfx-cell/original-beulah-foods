@@ -342,8 +342,18 @@ async function handleWebhook(request, env) {
 }
 
 const STOREFRONT_PAGES = new Set([
-  "login", "signup", "forgot-password", "reset-password", "verification-success",
-  "account", "shop", "product", "cart", "checkout", "orders", "order",
+  "login",
+  "signup",
+  "forgot-password",
+  "reset-password",
+  "verification-success",
+  "account",
+  "shop",
+  "product",
+  "cart",
+  "checkout",
+  "orders",
+  "order",
   "payment-callback",
 ]);
 
@@ -351,46 +361,55 @@ function assetRequest(request, env) {
   const url = new URL(request.url);
   const path = url.pathname;
 
-  if (path === "/") {
-    url.pathname = "/storefront/index.html";
-    return env.ASSETS.fetch(new Request(url, request));
-  }
-
-  if (path === "/admin") {
-    return Response.redirect(new URL("/admin/", request.url), 301);
-  }
-
-  if (path === "/admin/") {
-    url.pathname = "/admin/index.html";
-    return env.ASSETS.fetch(new Request(url, request));
-  }
-
   if (path === "/storefront/" || path === "/storefront/index.html") {
-    url.pathname = "/storefront/index.html";
-    return env.ASSETS.fetch(new Request(url, request));
+    const storefrontUrl = new URL(request.url);
+    storefrontUrl.pathname = "/storefront/index.html";
+    return env.ASSETS.fetch(new Request(storefrontUrl, request));
   }
 
   if (path.startsWith("/storefront/") && path.endsWith(".html")) {
     const filename = path.slice("/storefront/".length);
-    return Response.redirect(new URL(`/${filename}`, request.url), 301);
+    const canonical = new URL(request.url);
+    canonical.pathname = `/${filename}`;
+    return Response.redirect(canonical, 301);
   }
 
-  const rootHtml = path.match(/^\/([^/]+)\.html$/);
-  if (rootHtml) {
-    const name = rootHtml[1];
-    if (STOREFRONT_PAGES.has(name)) {
-      url.pathname = `/storefront/${name}.html`;
-      return env.ASSETS.fetch(new Request(url, request));
-    }
-    url.pathname = `/storefront/${name}.html`;
-    return env.ASSETS.fetch(new Request(url, request));
+  if (path === "/") {
+    const storefrontUrl = new URL(request.url);
+    storefrontUrl.pathname = "/storefront/index.html";
+    return env.ASSETS.fetch(new Request(storefrontUrl, request));
   }
 
-  if (!path.startsWith("/admin") && !path.startsWith("/storefront")) {
-    url.pathname = `/storefront${path}`;
+  if (path === "/admin") {
+    const canonical = new URL(request.url);
+    canonical.pathname = "/admin/";
+    return Response.redirect(canonical, 301);
   }
 
-  return env.ASSETS.fetch(new Request(url, request));
+  if (path === "/admin/") {
+    const adminUrl = new URL(request.url);
+    adminUrl.pathname = "/admin/index.html";
+    return env.ASSETS.fetch(new Request(adminUrl, request));
+  }
+
+  const cleanPath = path.replace(/^\//, "");
+  if (STOREFRONT_PAGES.has(cleanPath)) {
+    const storefrontUrl = new URL(request.url);
+    storefrontUrl.pathname = `/storefront/${cleanPath}.html`;
+    return env.ASSETS.fetch(new Request(storefrontUrl, request));
+  }
+
+  if (
+    path.endsWith(".html") &&
+    !path.startsWith("/storefront/") &&
+    !path.startsWith("/admin/")
+  ) {
+    const storefrontUrl = new URL(request.url);
+    storefrontUrl.pathname = `/storefront${path}`;
+    return env.ASSETS.fetch(new Request(storefrontUrl, request));
+  }
+
+  return env.ASSETS.fetch(request);
 }
 
 export default {
