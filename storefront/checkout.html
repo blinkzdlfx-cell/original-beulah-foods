@@ -78,7 +78,13 @@
             <div><p class="checkout-section__eyebrow">Savings</p><h2>Promo code</h2></div>
             <span class="checkout-optional">Optional</span>
           </div>
-          <div class="checkout-promo-row"><input id="promo-code" name="promoCode" autocomplete="off" maxlength="50" placeholder="Enter promo code" aria-label="Promo code" /></div>
+          <div class="checkout-promo-row">
+            <input id="promo-code" name="promoCode" autocomplete="off" maxlength="50" placeholder="Enter promo code" aria-label="Promo code" />
+            <div class="checkout-promo-actions">
+              <button id="checkout-promo-check" class="btn btn-secondary" type="button">Check promo code</button>
+              <span id="checkout-promo-status" class="checkout-promo-status" role="status" aria-live="polite"></span>
+            </div>
+          </div>
         </section>
 
         <div class="checkout-confirm-note" id="checkout-confirm-note">Confirming this order will reserve these items for 15 minutes while you complete payment.</div>
@@ -97,6 +103,7 @@
   </main>
 
   <script type="module" src="js/services/checkoutStateBridge.js"></script>
+  <script type="module" src="js/pages/checkoutPromo.js"></script>
   <script type="module" src="js/pages/checkout.js"></script>
 </body>
 </html>
