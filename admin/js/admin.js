@@ -151,7 +151,7 @@ productForm.addEventListener("submit", async (event) => {
       slug: slugify(values.name),
       description: values.description.trim(),
       price: Number(values.price),
-      image_url: uploadedPath || existing?.image_url || null,
+      image_path: uploadedPath || existing?.image_path || null,
       stock_quantity: Math.max(0, Number.parseInt(values.stock_quantity, 10) || 0),
       sort_order: Number(values.sort_order) || 0,
       is_active: values.is_active === "on",
@@ -161,7 +161,7 @@ productForm.addEventListener("submit", async (event) => {
     if (productId.value) {
       const { error } = await supabase.from("products").update(payload).eq("id", productId.value);
       if (error) throw error;
-      if (uploadedPath && existing?.image_url) await removeProductImage(existing.image_url);
+      if (uploadedPath && existing?.image_path) await removeProductImage(existing.image_path);
     } else {
       const { error } = await supabase.from("products").insert(payload);
       if (error) throw error;
@@ -232,7 +232,7 @@ async function loadProducts() {
   const { data, error, count } = await supabase
     .from("products")
     .select(
-      "id,category_id,name,slug,description,price,image_url,stock_quantity,reserved_quantity,sort_order,is_active,is_featured,categories(name)",
+      "id,category_id,name,slug,description,price,image_path,stock_quantity,sort_order,is_active,is_featured,categories(name)",
       { count: "exact" },
     )
     .order("sort_order")
@@ -244,7 +244,7 @@ async function loadProducts() {
     products
       .map(
         (item) =>
-          `<tr><td><div class="admin-product-cell">${item.image_url ? `<img src="${escapeAttribute(getProductImageUrl(item.image_url))}" alt="" loading="lazy">` : ""}<span>${escapeHtml(item.name)}</span></div></td><td>${item.categories?.name ? escapeHtml(item.categories.name) : "—"}</td><td>${formatNaira(item.price)}</td><td>${item.stock_quantity}</td><td>${item.is_featured ? '<span class="badge badge--featured">Featured</span>' : "—"}</td><td>${item.is_active ? '<span class="badge">Active</span>' : "Inactive"}</td><td><button class="btn btn-secondary" data-edit-product="${item.id}">Edit</button> <button class="btn btn-secondary" data-toggle-product="${item.id}">${item.is_active ? "Deactivate" : "Activate"}</button></td></tr>`,
+          `<tr><td><div class="admin-product-cell">${item.image_path ? `<img src="${escapeAttribute(getProductImageUrl(item.image_path))}" alt="" loading="lazy">` : ""}<span>${escapeHtml(item.name)}</span></div></td><td>${item.categories?.name ? escapeHtml(item.categories.name) : "—"}</td><td>${formatNaira(item.price)}</td><td>${item.stock_quantity}</td><td>${item.is_featured ? '<span class="badge badge--featured">Featured</span>' : "—"}</td><td>${item.is_active ? '<span class="badge">Active</span>' : "Inactive"}</td><td><button class="btn btn-secondary" data-edit-product="${item.id}">Edit</button> <button class="btn btn-secondary" data-toggle-product="${item.id}">${item.is_active ? "Deactivate" : "Activate"}</button></td></tr>`,
       )
       .join("") || '<tr><td colspan="7" class="muted">No products yet.</td></tr>';
   productRows
@@ -330,7 +330,7 @@ function editProduct(id) {
   productForm.is_active.checked = item.is_active;
   productForm.is_featured.checked = Boolean(item.is_featured);
   productImage.value = "";
-  if (item.image_url) renderPreview(getProductImageUrl(item.image_url));
+  if (item.image_path) renderPreview(getProductImageUrl(item.image_path));
   else {
     productPreview.hidden = true;
     productPreview.innerHTML = "";
