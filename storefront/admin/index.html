@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Beulah Foods Admin — Dashboard</title>
   <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#00a85a">
+  <link rel="icon" href="/assets/favicon.webp">
   <link rel="stylesheet" href="css/variables.css">
   <link rel="stylesheet" href="css/admin.css">
 </head>
@@ -12,9 +14,10 @@
 <div id="admin-shell" class="admin-shell admin-shell--loading">
   <section id="admin-login" class="admin-main hidden">
     <div class="login-card admin-card">
-      <p class="page-heading__eyebrow">Beulah Foods</p>
+      <div class="admin-login-brand"><img src="/assets/beulah-logo.webp" alt="Beulah Foods" class="admin-login-logo"><div><strong>Beulah Foods</strong><span>Admin</span></div></div>
+      <p class="page-heading__eyebrow">Store administration</p>
       <h1>Admin sign in</h1>
-      <p class="login-copy">Use an account explicitly provisioned in the admin authorization table.</p>
+      <p class="login-copy">Use an account explicitly provisioned for admin access.</p>
       <div id="admin-login-alert" class="alert error" role="alert" hidden></div>
       <form id="admin-login-form" class="stack">
         <div class="field"><label for="admin-email">Email</label><input id="admin-email" type="email" autocomplete="username" required></div>
@@ -27,7 +30,7 @@
   <section id="admin-app" class="hidden">
     <header class="admin-header">
       <div class="admin-header__inner">
-        <a class="admin-brand" href="/admin/" aria-label="Beulah Foods Admin home"><span class="admin-brand__mark">BF</span><span>Beulah Foods <b>Admin</b></span></a>
+        <a class="admin-brand" href="/admin/" aria-label="Beulah Foods Admin home"><img src="/assets/beulah-logo.webp" alt="" class="admin-brand__logo"><span>Beulah Foods <b>Admin</b></span></a>
         <button id="admin-menu-toggle" class="admin-menu-toggle" type="button" aria-expanded="false" aria-controls="admin-menu" aria-label="Open admin menu"><span></span><span></span><span></span></button>
         <div id="admin-menu" class="admin-menu" hidden>
           <div class="admin-menu__identity"><span>Signed in as</span><strong id="admin-name">Admin</strong></div>
@@ -44,7 +47,7 @@
     <main class="admin-main">
       <div id="admin-alert" class="alert" role="status" hidden></div>
       <section class="page-heading">
-        <div><p class="page-heading__eyebrow">Store operations</p><h1>Dashboard</h1><p>Manage the live catalogue and store configuration from the new Supabase backend.</p></div>
+        <div><p class="page-heading__eyebrow">Store operations</p><h1>Dashboard</h1><p>Manage the catalogue and store configuration from the Beulah Foods backend.</p></div>
       </section>
 
       <section class="metric-grid" aria-label="Store metrics">
