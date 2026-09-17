@@ -193,4 +193,58 @@ The checkout page now has a **Check promo code** button. It validates the entere
 
 The clean TEST database currently contains `WELCOME1`, an active percentage promo with a 5% discount and no minimum order amount or maximum discount configured.
 
+### Admin transactions and promo redemption tracking
+
+- Fixed the clean admin Transactions page schema mismatch that caused HTTP 400 by replacing the obsolete `provider_reference` field with the authoritative payment `reference` field and using the actual payment/order relationships.
+- Added promo visibility to admin Orders and Transactions records.
+- Added `promo_redemptions` tracking tied to the order and promo code, including the promo code, order subtotal, discount amount, and timestamp.
+- Updated trusted order creation so a valid promo application records a redemption and increments the promo usage count as part of the same transaction.
+- Existing applicable promo usage was backfilled into the new redemption tracking table.
+
 Production resources remain out of scope.
+
+## 2026-09-17 — Next feature plan documented
+
+Created `docs/NEXT_FEATURE_PLAN.md` as the persistent context for the next wider implementation chunks.
+
+### Group A — Brand assets
+
+Planned, not yet implemented:
+
+- Create a favicon derived from the existing Beulah Foods logo/brand mark and prepare it for small-size readability.
+- Add correct storefront favicon/browser/mobile icon references.
+- Separate admin brand assets from storefront asset paths.
+- Ensure admin logo/favicon references are local to the admin application.
+- Verify there are no broken asset requests and no unnecessary storefront dependency from admin.
+
+### Group B — How To system
+
+Planned, not yet implemented:
+
+- Build an admin-controlled product How To content system.
+- Associate each guide with a real catalogue product.
+- Support editable title and description.
+- Support any number of ordered instructional steps, including add/edit/remove/reorder.
+- Build a separate admin-controlled How To Order guide with editable ordered steps.
+- Render customer-facing How To content from real database records.
+- Apply appropriate RLS/admin authorization and loading/error/empty states.
+- Do not introduce mock instructional data.
+
+The exact database schema will be verified against the current clean Supabase schema before implementation.
+
+### Group C — Legal pages
+
+Planned, not yet implemented:
+
+- Create a customer-facing Privacy Policy page based on the actual Beulah Foods application's data and infrastructure behavior.
+- Create a customer-facing Terms of Service page based on the actual ordering, reservation, promo, payment, verification, and delivery behavior.
+- Keep business/legal details that require owner confirmation clearly identifiable instead of silently inventing them.
+- Add both pages to appropriate storefront footer/navigation locations.
+
+### Reserved future groups
+
+- Group D: Admin loading states for Orders, Transactions, and related data-fetching states.
+- Group E: Admin-controlled announcements with image, short description, page targeting, display sequence, and display mode.
+- Group F: Final documentation/context pass, including worklog/feature documentation and AI-assistant documentation status.
+
+No implementation was performed for Groups A–C by this documentation update. Production resources remain out of scope.
