@@ -52,7 +52,7 @@ async function authenticateCustomer(request, env) {
 
   const response = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, {
     headers: {
-      apikey: requireSecret(env, "SUPABASE_ANON_KEY"),
+      apikey: requireSecret(env, "SUPABASE_SERVICE_ROLE_KEY"),
       Authorization: `Bearer ${token}`,
     },
   });
@@ -66,7 +66,7 @@ async function callCustomerRpc(env, functionName, args, accessToken) {
   const response = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/${functionName}`, {
     method: "POST",
     headers: {
-      apikey: requireSecret(env, "SUPABASE_ANON_KEY"),
+      apikey: requireSecret(env, "SUPABASE_SERVICE_ROLE_KEY"),
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
@@ -162,7 +162,6 @@ async function initializePaystack(request, env) {
       metadata: JSON.stringify({
         order_id: payment.order_id,
         payment_id: payment.payment_id,
-        order_number: payment.order_number || null,
         source: "beulah-foods-web",
       }),
     }),
