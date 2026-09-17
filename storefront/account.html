@@ -1,9 +1,11 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>My Account — Beulah Foods</title>
+  <link rel="icon" type="image/webp" href="/assets/beulah-logo.webp" />
+  <link rel="apple-touch-icon" href="/assets/beulah-logo.webp" />
   <link rel="stylesheet" href="css/variables.css" />
   <link rel="stylesheet" href="css/base.css" />
   <link rel="stylesheet" href="css/components.css" />
@@ -11,99 +13,16 @@
   <link rel="stylesheet" href="css/account-refinement.css" />
 </head>
 <body>
-  <header class="site-header">
-    <div class="site-header__inner">
-      <a class="site-header__logo-wrap" href="index.html" aria-label="Beulah Foods home">
-        <span class="site-header__mark" aria-hidden="true"></span>
-        <span class="site-header__brand">Beulah Foods</span>
-      </a>
-      <nav id="site-header-nav" class="site-header__nav" aria-label="Main navigation" hidden></nav>
-    </div>
-  </header>
-
+  <header class="site-header"><div class="site-header__inner"><a class="site-header__logo-wrap" href="index.html" aria-label="Beulah Foods home"><span class="site-header__mark" aria-hidden="true"></span><span class="site-header__brand">Beulah Foods</span></a><nav id="site-header-nav" class="site-header__nav" aria-label="Main navigation" hidden></nav></div></header>
   <main class="account-page">
-    <section class="page-heading">
-      <p class="eyebrow">My account</p>
-      <h1>Your details, your way.</h1>
-      <p>Keep your contact and delivery details ready for a smoother Beulah Foods order.</p>
-    </section>
-
+    <section class="page-heading"><p class="eyebrow">My account</p><h1>Your details, your way.</h1><p>Keep your contact and delivery details ready for a smoother Beulah Foods order.</p></section>
     <section class="account-layout" aria-label="Account details">
-      <aside class="account-summary card">
-        <div class="account-avatar" id="account-avatar" aria-hidden="true"></div>
-        <div class="account-summary__identity">
-          <p class="account-summary__label">Beulah Foods customer</p>
-          <strong id="account-email">Loading...</strong>
-        </div>
-        <nav class="account-summary__links" aria-label="Account navigation">
-          <a class="account-summary__link account-summary__link--active" href="account.html">Account details</a>
-          <a class="account-summary__link" href="orders.html">My orders</a>
-          <a class="account-summary__link" href="reservations.html">My reservations</a>
-        </nav>
-        <a class="account-summary__link account-summary__link--secondary" href="shop.html">Continue shopping</a>
-      </aside>
-
-      <div class="card account-form-card">
-        <div class="account-form-header">
-          <div>
-            <p class="account-form-eyebrow">Your information</p>
-            <h2>Contact & delivery details</h2>
-          </div>
-          <button class="btn btn-secondary" type="button" id="edit-profile">Edit details</button>
-        </div>
-
-        <div id="account-alert" class="alert" role="status" aria-live="polite" hidden></div>
-
-        <div id="account-view" class="account-view" aria-live="polite">
-          <div class="account-detail">
-            <span class="account-detail__label">Full name</span>
-            <strong id="view-full-name">Not added yet</strong>
-          </div>
-          <div class="account-detail">
-            <span class="account-detail__label">Email address</span>
-            <strong id="view-email">Loading...</strong>
-          </div>
-          <div class="account-detail">
-            <span class="account-detail__label">Phone number</span>
-            <strong id="view-phone">Not added yet</strong>
-          </div>
-          <div class="account-detail account-detail--address">
-            <span class="account-detail__label">Delivery address</span>
-            <strong id="view-address">Not added yet</strong>
-          </div>
-        </div>
-
-        <form id="account-form" class="account-edit-form" novalidate hidden>
-          <div class="form-field">
-            <label for="full-name">Full name</label>
-            <input id="full-name" name="fullName" type="text" autocomplete="name" required />
-          </div>
-
-          <div class="form-field">
-            <label for="email">Email address</label>
-            <input id="email" name="email" type="email" autocomplete="email" disabled />
-            <small>Your email is managed by your authentication account.</small>
-          </div>
-
-          <div class="form-field">
-            <label for="phone">Phone number</label>
-            <input id="phone" name="phone" type="tel" autocomplete="tel" />
-          </div>
-
-          <div class="form-field">
-            <label for="address">Delivery address</label>
-            <textarea id="address" name="address" rows="4" autocomplete="street-address"></textarea>
-          </div>
-
-          <div class="account-form-actions">
-            <button class="btn btn-secondary" type="button" id="cancel-edit">Cancel</button>
-            <button class="btn btn-primary" type="submit" id="save-profile" hidden>Save changes</button>
-          </div>
-        </form>
-      </div>
+      <aside class="account-summary card"><div class="account-avatar" id="account-avatar" aria-hidden="true"></div><div class="account-summary__identity"><p class="account-summary__label">Beulah Foods customer</p><strong id="account-email">Loading...</strong></div><nav class="account-summary__links" aria-label="Account navigation"><a class="account-summary__link account-summary__link--active" href="account.html">Account details</a><a class="account-summary__link" href="orders.html">My orders</a><a class="account-summary__link" href="reservations.html">My reservations</a></nav><a class="account-summary__link account-summary__link--secondary" href="shop.html">Continue shopping</a></aside>
+      <div class="card account-form-card"><div class="account-form-header"><div><p class="account-form-eyebrow">Your information</p><h2>Contact & delivery details</h2></div><button class="btn btn-secondary" type="button" id="edit-profile">Edit details</button></div><div id="account-alert" class="alert" role="status" aria-live="polite" hidden></div><div id="account-view" class="account-view" aria-live="polite"><div class="account-detail"><span class="account-detail__label">Full name</span><strong id="view-full-name">Not added yet</strong></div><div class="account-detail"><span class="account-detail__label">Email address</span><strong id="view-email">Loading...</strong></div><div class="account-detail"><span class="account-detail__label">Phone number</span><strong id="view-phone">Not added yet</strong></div><div class="account-detail account-detail--address"><span class="account-detail__label">Delivery address</span><strong id="view-address">Not added yet</strong></div></div><form id="account-form" class="account-edit-form" novalidate hidden><div class="form-field"><label for="full-name">Full name</label><input id="full-name" name="fullName" type="text" autocomplete="name" required /></div><div class="form-field"><label for="email">Email address</label><input id="email" name="email" type="email" autocomplete="email" disabled /><small>Your email is managed by your authentication account.</small></div><div class="form-field"><label for="phone">Phone number</label><input id="phone" name="phone" type="tel" autocomplete="tel" /></div><div class="form-field"><label for="address">Delivery address</label><textarea id="address" name="address" rows="4" autocomplete="street-address"></textarea></div><div class="account-form-actions"><button class="btn btn-secondary" type="button" id="cancel-edit">Cancel</button><button class="btn btn-primary" type="submit" id="save-profile" hidden>Save changes</button></div></form></div>
     </section>
   </main>
-
+  <footer class="site-footer"><div class="footer__inner"><div><div class="footer__brand">Beulah Foods</div><p class="footer__copy">Eat Healthy, Live Healthy.</p><p class="footer__copy">Lagos, Nigeria</p></div><div class="footer__links"><div><strong>Navigate</strong><a href="shop.html">Shop</a><a href="how-to.html">How To</a><a href="account.html">My Account</a><a href="orders.html">My Orders</a></div><div><strong>Legal</strong><a href="privacy-policy.html">Privacy Policy</a><a href="terms-of-service.html">Terms of Service</a></div><div><strong>Contact</strong><a href="mailto:hello@beulahfoods.com">hello@beulahfoods.com</a></div></div><p class="footer__copy footer__copyright">© <span id="footer-year"></span> Beulah Foods</p></div></footer>
   <script type="module" src="js/pages/account.js"></script>
+  <script>document.getElementById("footer-year")?.replaceChildren(String(new Date().getFullYear()));</script>
 </body>
 </html>
