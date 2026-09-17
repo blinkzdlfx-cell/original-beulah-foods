@@ -25,10 +25,8 @@
       <div id="status" class="alert" hidden></div>
       <section class="admin-card">
         <div class="table-wrap">
-          <table class="table">
-            <thead><tr><th>Payment</th><th>Order</th><th>Provider</th><th>Reference</th><th>Amount</th><th>Payment status</th><th>Order status</th><th>Created</th></tr></thead>
-            <tbody id="rows"><tr><td colspan="8" class="table-empty">Loading transactions…</td></tr></tbody>
-          </table>
+          <table class="table"><thead><tr><th>Payment</th><th>Order</th><th>Provider</th><th>Reference</th><th>Amount</th><th>Payment status</th><th>Order status</th><th>Created</th></tr></thead>
+          <tbody id="rows"><tr><td colspan="8" class="table-empty">Loading transactions…</td></tr></tbody></table>
         </div>
         <div id="transaction-pagination" class="admin-pagination"></div>
       </section>
@@ -36,70 +34,38 @@
   </div>
 <script type="module">
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from "../js/config.js";
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "../../js/config.js";
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { storageKey: "beulah-storefront-auth" } });
+const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, { auth: { storageKey: "beulah-storefront-auth" } });
 const rows = document.getElementById("rows");
 const status = document.getElementById("status");
 const pagination = document.getElementById("transaction-pagination");
 const money = new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 2 });
 const PAGE_SIZE = 25;
 let page = 0;
-
 function escapeHtml(value) { return String(value ?? "").replace(/[&<>\"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 function showStatus(text, error = false) { status.textContent = text; status.className = `alert${error ? " error" : ""}`; status.hidden = !text; }
 function fmtDate(value) { return value ? new Intl.DateTimeFormat("en-NG", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "—"; }
 function badge(value, danger = false) { return `<span class="badge${danger ? " badge--danger" : ""}">${escapeHtml(value)}</span>`; }
-
-async function assertAdmin() {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-  const { data, error } = await supabase.rpc("is_admin");
-  if (error) throw error;
-  if (!data) { await supabase.auth.signOut(); throw new Error("ADMIN_ACCESS_REQUIRED"); }
-  return user;
-}
-
+async function assertAdmin() { const { data: { user } } = await supabase.auth.getUser(); if (!user) return null; const { data, error } = await supabase.rpc("is_admin"); if (error) throw error; if (!data) { await supabase.auth.signOut(); throw new Error("ADMIN_ACCESS_REQUIRED"); } return user; }
 async function loadTransactions() {
   rows.innerHTML = `<tr><td colspan="8" class="table-empty">Loading transactions…</td></tr>`;
-  const from = page * PAGE_SIZE;
-  const to = from + PAGE_SIZE - 1;
-  const { data, error, count } = await supabase
-    .from("payments")
-    .select("id,order_id,reference,amount,currency,status,provider,provider_transaction_id,created_at,orders!inner(order_number,status)", { count: "exact" })
-    .order("created_at", { ascending: false })
-    .range(from, to);
+  const from = page * PAGE_SIZE, to = from + PAGE_SIZE - 1;
+  const { data, error, count } = await supabase.from("payments").select("id,order_id,reference,amount,currency,status,provider,provider_transaction_id,created_at,orders!inner(order_number,status)", { count: "exact" }).order("created_at", { ascending: false }).range(from, to);
   if (error) throw error;
-
-  if (!data?.length) {
-    rows.innerHTML = `<tr><td colspan="8" class="table-empty">No transactions yet.</td></tr>`;
-  } else {
-    rows.innerHTML = data.map(payment => `<tr>
-      <td><strong>${escapeHtml(String(payment.id).slice(0, 8))}</strong><br><small>${escapeHtml(payment.provider_transaction_id || "No provider ID")}</small></td>
-      <td>${escapeHtml(payment.orders?.order_number || String(payment.order_id).slice(0, 8))}</td>
-      <td>${escapeHtml(payment.provider || "paystack")}</td>
-      <td><code>${escapeHtml(payment.reference)}</code></td>
-      <td>${money.format(Number(payment.amount) || 0)}</td>
-      <td>${badge(payment.status, ["failed", "late_payment", "manual_resolution_required"].includes(payment.status))}</td>
-      <td>${badge(payment.orders?.status || "—", payment.orders?.status === "cancelled")}</td>
-      <td>${fmtDate(payment.created_at)}</td>
-    </tr>`).join("");
-  }
-
+  if (!data?.length) rows.innerHTML = `<tr><td colspan="8" class="table-empty">No transactions yet.</td></tr>`;
+  else rows.innerHTML = data.map(payment => `<tr><td><strong>${escapeHtml(String(payment.id).slice(0, 8))}</strong><br><small>${escapeHtml(payment.provider_transaction_id || "No provider ID")}</small></td><td>${escapeHtml(payment.orders?.order_number || String(payment.order_id).slice(0, 8))}</td><td>${escapeHtml(payment.provider || "paystack")}</td><td><code>${escapeHtml(payment.reference)}</code></td><td>${money.format(Number(payment.amount) || 0)}</td><td>${badge(payment.status, ["failed", "late_payment", "manual_resolution_required"].includes(payment.status))}</td><td>${badge(payment.orders?.status || "—", payment.orders?.status === "cancelled")}</td><td>${fmtDate(payment.created_at)}</td></tr>`).join("");
   const totalPages = Math.max(1, Math.ceil((count || 0) / PAGE_SIZE));
   pagination.innerHTML = `<button class="btn btn-secondary" type="button" id="prev" ${page === 0 ? "disabled" : ""}>Previous</button><span>Page ${page + 1} of ${totalPages}</span><button class="btn btn-secondary" type="button" id="next" ${page + 1 >= totalPages ? "disabled" : ""}>Next</button>`;
   document.getElementById("prev")?.addEventListener("click", async () => { page -= 1; await loadTransactions(); });
   document.getElementById("next")?.addEventListener("click", async () => { page += 1; await loadTransactions(); });
 }
-
 document.getElementById("admin-logout").addEventListener("click", async () => { await supabase.auth.signOut(); location.href = "/admin/"; });
-const menuToggle = document.getElementById("admin-menu-toggle");
-const menu = document.getElementById("admin-menu");
+const menuToggle = document.getElementById("admin-menu-toggle"), menu = document.getElementById("admin-menu");
 menuToggle.addEventListener("click", () => { const open = menu.classList.toggle("is-open"); menuToggle.setAttribute("aria-expanded", String(open)); });
 document.addEventListener("click", event => { if (!menu.contains(event.target) && !menuToggle.contains(event.target)) { menu.classList.remove("is-open"); menuToggle.setAttribute("aria-expanded", "false"); } });
 document.addEventListener("keydown", event => { if (event.key === "Escape") { menu.classList.remove("is-open"); menuToggle.setAttribute("aria-expanded", "false"); } });
-
-try { const user = await assertAdmin(); if (!user) { location.href = "/admin/"; } else await loadTransactions(); }
+try { const user = await assertAdmin(); if (!user) location.href = "/admin/"; else await loadTransactions(); }
 catch (error) { console.error(error); showStatus(error?.message === "ADMIN_ACCESS_REQUIRED" ? "This account is not provisioned for admin access." : "Could not load transactions.", true); rows.innerHTML = `<tr><td colspan="8" class="table-empty">Transactions could not be loaded.</td></tr>`; }
 </script>
 </body>
