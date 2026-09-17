@@ -409,6 +409,15 @@ function assetRequest(request, env) {
     return env.ASSETS.fetch(new Request(storefrontUrl, request));
   }
 
+  // Storefront HTML is exposed at root-level URLs, but its static files
+  // remain under /storefront in the asset bundle. Map those root-relative
+  // CSS, JS, image, and other asset requests back to the storefront tree.
+  if (!path.startsWith("/admin/") && !path.startsWith("/storefront/")) {
+    const storefrontAssetUrl = new URL(request.url);
+    storefrontAssetUrl.pathname = `/storefront${path}`;
+    return env.ASSETS.fetch(new Request(storefrontAssetUrl, request));
+  }
+
   return env.ASSETS.fetch(request);
 }
 
