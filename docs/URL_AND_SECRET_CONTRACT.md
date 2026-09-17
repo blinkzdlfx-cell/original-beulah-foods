@@ -24,7 +24,7 @@ Expected routes:
 /account.html
 ```
 
-The exact production hostname is configured after the new Cloudflare project is created.
+The exact deployment hostname is configured after the new Cloudflare project is created.
 
 ## Cloudflare payment endpoints
 
@@ -41,7 +41,7 @@ These are Worker endpoints. They are not Supabase browser endpoints.
 The new project supplies one canonical URL:
 
 ```text
-https://<new-project-ref>.supabase.co
+https://wzrqlquspbipvrzidcxe.supabase.co
 ```
 
 Supabase Edge Functions are not the primary Paystack boundary in this rebuild. Any server-to-server Supabase endpoint used by Cloudflare must be explicitly documented and authenticated.
@@ -63,21 +63,22 @@ The callback URL contains no secret.
 Allowed:
 
 - `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
+- `SUPABASE_PUBLISHABLE_KEY`
 
 Not allowed:
 
 - `PAYSTACK_SECRET_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_SECRET_KEY`
 - Cloudflare internal secrets
 
 ### Cloudflare Worker secrets
 
 Expected server-only configuration:
 
-- `PAYSTACK_SECRET_KEY`
-- `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY` or a narrowly scoped authenticated Supabase server credential, depending on the final implementation
+- `PAYSTACK_SECRET_KEY` — Paystack TEST Mode secret for the test environment
+- `SUPABASE_SECRET_KEY` — Supabase secret key for the new project
+
+`SUPABASE_URL` is non-secret Worker configuration. The Supabase secret key is sent as the `apikey` header for privileged backend requests. It must never be placed in browser code or sent as `Authorization: Bearer <secret-key>` because the new secret key is not a JWT.
 
 Secrets are configured in Cloudflare, not committed to Git.
 
