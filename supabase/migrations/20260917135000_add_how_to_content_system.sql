@@ -1,12 +1,7 @@
 create table if not exists public.how_to_guides (
-  id uuid primary key default gen_random_uuid(),
-  product_id uuid not null references public.products(id) on delete cascade,
-  title text not null,
-  description text,
-  is_active boolean not null default true,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  unique (product_id)
+  id uuid primary key default gen_random_uuid(), product_id uuid not null references public.products(id) on delete cascade,
+  title text not null, description text, is_active boolean not null default true,
+  created_at timestamptz not null default now(), updated_at timestamptz not null default now(), unique (product_id)
 );
 create table if not exists public.how_to_steps (
   id uuid primary key default gen_random_uuid(), guide_id uuid not null references public.how_to_guides(id) on delete cascade,
@@ -23,18 +18,16 @@ create table if not exists public.how_to_order_steps (
   created_at timestamptz not null default now(), updated_at timestamptz not null default now(), unique (guide_id, step_number)
 );
 create unique index if not exists how_to_order_singleton_idx on public.how_to_order ((true));
-alter table public.how_to_guides enable row level security;
-alter table public.how_to_steps enable row level security;
-alter table public.how_to_order enable row level security;
-alter table public.how_to_order_steps enable row level security;
+alter table public.how_to_guides enable row level security; alter table public.how_to_steps enable row level security;
+alter table public.how_to_order enable row level security; alter table public.how_to_order_steps enable row level security;
 create policy "how_to_guides_public_read_active" on public.how_to_guides for select to anon, authenticated using (is_active = true);
-create policy "how_to_guides_admin_all" on public.how_to_guides for all to authenticated using (public.is_admin()) with check (public.is_admin());
+create policy "how_to_guides_admin_all" on public.how_to_guides for all to authenticated using (private.is_admin()) with check (private.is_admin());
 create policy "how_to_steps_public_read" on public.how_to_steps for select to anon, authenticated using (exists (select 1 from public.how_to_guides g where g.id = guide_id and g.is_active = true));
-create policy "how_to_steps_admin_all" on public.how_to_steps for all to authenticated using (public.is_admin()) with check (public.is_admin());
+create policy "how_to_steps_admin_all" on public.how_to_steps for all to authenticated using (private.is_admin()) with check (private.is_admin());
 create policy "how_to_order_public_read_active" on public.how_to_order for select to anon, authenticated using (is_active = true);
-create policy "how_to_order_admin_all" on public.how_to_order for all to authenticated using (public.is_admin()) with check (public.is_admin());
+create policy "how_to_order_admin_all" on public.how_to_order for all to authenticated using (private.is_admin()) with check (private.is_admin());
 create policy "how_to_order_steps_public_read" on public.how_to_order_steps for select to anon, authenticated using (exists (select 1 from public.how_to_order h where h.id = guide_id and h.is_active = true));
-create policy "how_to_order_steps_admin_all" on public.how_to_order_steps for all to authenticated using (public.is_admin()) with check (public.is_admin());
+create policy "how_to_order_steps_admin_all" on public.how_to_order_steps for all to authenticated using (private.is_admin()) with check (private.is_admin());
 grant select on public.how_to_guides, public.how_to_steps, public.how_to_order, public.how_to_order_steps to anon, authenticated;
 grant insert, update, delete on public.how_to_guides, public.how_to_steps, public.how_to_order, public.how_to_order_steps to authenticated;
 create or replace function public.set_updated_at() returns trigger language plpgsql as $$ begin new.updated_at = now(); return new; end; $$;
