@@ -1,0 +1,80 @@
+name: Rebuild admin from TEST source
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild-admin:
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
+    steps:
+      - name: Checkout clean TEST repo
+        uses: actions/checkout@v4
+
+      - name: Copy proven TEST admin application
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/beulah-test
+          mkdir -p /tmp/beulah-test
+          curl -fsSL https://github.com/blinkzdlfx-cell/test-beulah-foods/archive/refs/heads/main.tar.gz -o /tmp/beulah-test.tar.gz
+          tar -xzf /tmp/beulah-test.tar.gz -C /tmp/beulah-test --strip-components=1
+          test -d /tmp/beulah-test/admin
+          rm -rf admin
+          cp -R /tmp/beulah-test/admin admin
+
+      - name: Point admin at clean TEST Supabase
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > admin/js/lib/supabaseClient.js <<'EOF'
+          import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+          import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "../../../storefront/js/config.js";
+
+          export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+            auth: {
+              storageKey: "beulah-admin-auth",
+            },
+          });
+          EOF
+
+      - name: Make Cloudflare serve both storefront and admin trees
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('wrangler.toml')
+          text = p.read_text()
+          text = text.replace('directory = "./storefront"', 'directory = "."')
+          p.write_text(text)
+          PY
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('worker.js')
+          text = p.read_text()
+          old = '      return env.ASSETS.fetch(request);'
+          new = '''      const assetUrl = new URL(request.url);\n      if (!assetUrl.pathname.startsWith("/admin") && !assetUrl.pathname.startsWith("/storefront")) {\n        assetUrl.pathname = `/storefront${assetUrl.pathname === "/" ? "/index.html" : assetUrl.pathname}`;\n      }\n      return env.ASSETS.fetch(new Request(assetUrl, request));'''
+          if old not in text:
+              raise SystemExit('Expected asset fallback was not found in worker.js')
+          p.write_text(text.replace(old, new, 1))
+          PY
+
+      - name: Remove obsolete nested admin application
+        shell: bash
+        run: rm -rf storefront/admin
+
+      - name: Commit rebuilt admin structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Rebuild admin from proven TEST application" || exit 0
+          git push
