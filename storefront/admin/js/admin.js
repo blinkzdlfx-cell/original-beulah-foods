@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from "../js/config.js";
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "../../js/config.js";
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: { storageKey: "beulah-storefront-auth" },
 });
 
@@ -66,11 +66,7 @@ async function assertAdmin() {
 }
 
 async function loadCategories() {
-  const { data, error } = await supabase
-    .from("categories")
-    .select("id,name,slug,description,sort_order,is_active")
-    .order("sort_order")
-    .order("name");
+  const { data, error } = await supabase.from("categories").select("id,name,slug,description,sort_order,is_active").order("sort_order").order("name");
   if (error) throw error;
   categories = data ?? [];
 
@@ -90,11 +86,7 @@ async function loadCategories() {
 }
 
 async function loadProducts() {
-  const { data, error } = await supabase
-    .from("products")
-    .select("id,category_id,name,slug,description,price,stock_quantity,sort_order,is_active,is_featured,categories(name)")
-    .order("sort_order")
-    .order("name");
+  const { data, error } = await supabase.from("products").select("id,category_id,name,slug,description,price,stock_quantity,sort_order,is_active,is_featured,categories(name)").order("sort_order").order("name");
   if (error) throw error;
   products = data ?? [];
 
@@ -111,18 +103,11 @@ async function loadProducts() {
     ? products.map((product) => `<tr><td><strong>${escapeHtml(product.name)}</strong><br><small>${escapeHtml(product.slug)}</small></td><td>${escapeHtml(product.categories?.name || "—")}</td><td>${money.format(Number(product.price) || 0)}</td><td>${Number(product.stock_quantity) || 0}</td><td>${product.is_featured ? '<span class="badge">Yes</span>' : '<span class="badge badge--neutral">No</span>'}</td><td>${product.is_active ? '<span class="badge">Active</span>' : '<span class="badge badge--danger">Hidden</span>'}</td><td><button class="btn btn-secondary" type="button" data-edit-product="${product.id}">Edit</button></td></tr>`).join("")
     : `<tr><td colspan="7" class="table-empty">No products yet.</td></tr>`;
 
-  rows.querySelectorAll("[data-edit-product]").forEach((button) => {
-    button.addEventListener("click", () => editProduct(button.dataset.editProduct));
-  });
+  rows.querySelectorAll("[data-edit-product]").forEach((button) => button.addEventListener("click", () => editProduct(button.dataset.editProduct)));
 }
 
 async function loadDelivery() {
-  const { data, error } = await supabase
-    .from("delivery_settings")
-    .select("id,is_delivery_enabled,delivery_fee,is_active,updated_at")
-    .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const { data, error } = await supabase.from("delivery_settings").select("id,is_delivery_enabled,delivery_fee,is_active,updated_at").order("updated_at", { ascending: false }).limit(1).maybeSingle();
   if (error) throw error;
   document.getElementById("delivery-id").value = data?.id || "";
   document.getElementById("delivery-enabled").checked = Boolean(data?.is_delivery_enabled);
@@ -131,10 +116,7 @@ async function loadDelivery() {
 }
 
 async function loadPromos() {
-  const { data, error } = await supabase
-    .from("promo_codes")
-    .select("id,code,discount_type,discount_value,usage_count,usage_limit,is_active")
-    .order("created_at", { ascending: false });
+  const { data, error } = await supabase.from("promo_codes").select("id,code,discount_type,discount_value,usage_count,usage_limit,is_active").order("created_at", { ascending: false });
   if (error) throw error;
   const rows = document.getElementById("promo-rows");
   rows.innerHTML = (data ?? []).length
@@ -161,25 +143,10 @@ function editProduct(id) {
   window.scrollTo({ top: document.getElementById("product-form").getBoundingClientRect().top + window.scrollY - 90, behavior: "smooth" });
 }
 
-function clearProductForm() {
-  document.getElementById("product-form").reset();
-  document.getElementById("product-id").value = "";
-  document.getElementById("product-active").checked = true;
-}
-
-function clearCategoryForm() {
-  document.getElementById("category-form").reset();
-  document.getElementById("category-id").value = "";
-}
-
-function clearPromoForm() {
-  document.getElementById("promo-form").reset();
-  document.getElementById("promo-id").value = "";
-}
-
-function escapeHtml(value) {
-  return String(value ?? "").replace(/[&<>\"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[character]);
-}
+function clearProductForm() { document.getElementById("product-form").reset(); document.getElementById("product-id").value = ""; document.getElementById("product-active").checked = true; }
+function clearCategoryForm() { document.getElementById("category-form").reset(); document.getElementById("category-id").value = ""; }
+function clearPromoForm() { document.getElementById("promo-form").reset(); document.getElementById("promo-id").value = ""; }
+function escapeHtml(value) { return String(value ?? "").replace(/[&<>\"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[character]); }
 
 loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -193,126 +160,19 @@ loginForm.addEventListener("submit", async (event) => {
     if (!user) throw new Error("ADMIN_ACCESS_REQUIRED");
     showApp(user);
     await refreshDashboard();
-  } catch (error) {
-    setLoginAlert(error?.message === "ADMIN_ACCESS_REQUIRED" ? "This account is not provisioned for admin access." : error?.message || "Could not sign in.");
-  }
+  } catch (error) { setLoginAlert(error?.message === "ADMIN_ACCESS_REQUIRED" ? "This account is not provisioned for admin access." : error?.message || "Could not sign in."); }
 });
 
-document.getElementById("admin-logout").addEventListener("click", async () => {
-  await supabase.auth.signOut();
-  showLogin();
-});
-
-document.getElementById("product-form").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  try {
-    const id = document.getElementById("product-id").value.trim();
-    const payload = {
-      name: document.getElementById("product-name").value.trim(),
-      slug: slugify(document.getElementById("product-name").value),
-      category_id: document.getElementById("product-category").value || null,
-      description: document.getElementById("product-description").value.trim() || null,
-      price: Number(document.getElementById("product-price").value),
-      stock_quantity: Math.max(0, Number.parseInt(document.getElementById("product-stock").value, 10) || 0),
-      sort_order: Math.max(0, Number.parseInt(document.getElementById("product-sort").value, 10) || 0),
-      is_active: document.getElementById("product-active").checked,
-      is_featured: document.getElementById("product-featured").checked,
-    };
-    const result = id ? await supabase.from("products").update(payload).eq("id", id) : await supabase.from("products").insert(payload);
-    if (result.error) throw result.error;
-    clearProductForm();
-    await refreshDashboard();
-    setAlert("Product saved.");
-  } catch (error) { setAlert(error?.message || "Could not save product.", true); }
-});
-
+document.getElementById("admin-logout").addEventListener("click", async () => { await supabase.auth.signOut(); showLogin(); });
+document.getElementById("product-form").addEventListener("submit", async (event) => { event.preventDefault(); try { const id = document.getElementById("product-id").value.trim(); const payload = { name: document.getElementById("product-name").value.trim(), slug: slugify(document.getElementById("product-name").value), category_id: document.getElementById("product-category").value || null, description: document.getElementById("product-description").value.trim() || null, price: Number(document.getElementById("product-price").value), stock_quantity: Math.max(0, Number.parseInt(document.getElementById("product-stock").value, 10) || 0), sort_order: Math.max(0, Number.parseInt(document.getElementById("product-sort").value, 10) || 0), is_active: document.getElementById("product-active").checked, is_featured: document.getElementById("product-featured").checked }; const result = id ? await supabase.from("products").update(payload).eq("id", id) : await supabase.from("products").insert(payload); if (result.error) throw result.error; clearProductForm(); await refreshDashboard(); setAlert("Product saved."); } catch (error) { setAlert(error?.message || "Could not save product.", true); } });
 document.getElementById("cancel-product").addEventListener("click", clearProductForm);
-
-document.getElementById("category-form").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  try {
-    const id = document.getElementById("category-id").value.trim();
-    const name = document.getElementById("category-name").value.trim();
-    const payload = { name, slug: slugify(name), description: document.getElementById("category-description").value.trim() || null, sort_order: Math.max(0, Number.parseInt(document.getElementById("category-sort").value, 10) || 0), is_active: true };
-    const result = id ? await supabase.from("categories").update(payload).eq("id", id) : await supabase.from("categories").insert(payload);
-    if (result.error) throw result.error;
-    clearCategoryForm();
-    await refreshDashboard();
-    setAlert("Category saved.");
-  } catch (error) { setAlert(error?.message || "Could not save category.", true); }
-});
-
+document.getElementById("category-form").addEventListener("submit", async (event) => { event.preventDefault(); try { const id = document.getElementById("category-id").value.trim(); const name = document.getElementById("category-name").value.trim(); const payload = { name, slug: slugify(name), description: document.getElementById("category-description").value.trim() || null, sort_order: Math.max(0, Number.parseInt(document.getElementById("category-sort").value, 10) || 0), is_active: true }; const result = id ? await supabase.from("categories").update(payload).eq("id", id) : await supabase.from("categories").insert(payload); if (result.error) throw result.error; clearCategoryForm(); await refreshDashboard(); setAlert("Category saved."); } catch (error) { setAlert(error?.message || "Could not save category.", true); } });
 document.getElementById("cancel-category").addEventListener("click", clearCategoryForm);
-
-document.getElementById("delivery-form").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  try {
-    const id = document.getElementById("delivery-id").value.trim();
-    const active = document.getElementById("delivery-active").checked;
-    const payload = { is_delivery_enabled: document.getElementById("delivery-enabled").checked, delivery_fee: Math.max(0, Number(document.getElementById("delivery-fee").value) || 0), is_active: active };
-    if (active) {
-      const { error } = await supabase.from("delivery_settings").update({ is_active: false }).neq("id", id || "00000000-0000-0000-0000-000000000000");
-      if (error) throw error;
-    }
-    const result = id ? await supabase.from("delivery_settings").update(payload).eq("id", id) : await supabase.from("delivery_settings").insert(payload);
-    if (result.error) throw result.error;
-    await refreshDashboard();
-    setAlert("Delivery settings saved.");
-  } catch (error) { setAlert(error?.message || "Could not save delivery settings.", true); }
-});
-
-document.getElementById("promo-form").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  try {
-    const id = document.getElementById("promo-id").value.trim();
-    const payload = {
-      code: document.getElementById("promo-code").value.trim().toUpperCase(),
-      discount_type: document.getElementById("promo-type").value,
-      discount_value: Number(document.getElementById("promo-value").value),
-      usage_limit: document.getElementById("promo-limit").value ? Number.parseInt(document.getElementById("promo-limit").value, 10) : null,
-      is_active: document.getElementById("promo-active").checked,
-    };
-    const result = id ? await supabase.from("promo_codes").update(payload).eq("id", id) : await supabase.from("promo_codes").insert(payload);
-    if (result.error) throw result.error;
-    clearPromoForm();
-    await refreshDashboard();
-    setAlert("Promo code saved.");
-  } catch (error) { setAlert(error?.message || "Could not save promo code.", true); }
-});
-
+document.getElementById("delivery-form").addEventListener("submit", async (event) => { event.preventDefault(); try { const id = document.getElementById("delivery-id").value.trim(); const active = document.getElementById("delivery-active").checked; const payload = { is_delivery_enabled: document.getElementById("delivery-enabled").checked, delivery_fee: Math.max(0, Number(document.getElementById("delivery-fee").value) || 0), is_active: active }; if (active) { const { error } = await supabase.from("delivery_settings").update({ is_active: false }).neq("id", id || "00000000-0000-0000-0000-000000000000"); if (error) throw error; } const result = id ? await supabase.from("delivery_settings").update(payload).eq("id", id) : await supabase.from("delivery_settings").insert(payload); if (result.error) throw result.error; await refreshDashboard(); setAlert("Delivery settings saved."); } catch (error) { setAlert(error?.message || "Could not save delivery settings.", true); } });
+document.getElementById("promo-form").addEventListener("submit", async (event) => { event.preventDefault(); try { const id = document.getElementById("promo-id").value.trim(); const payload = { code: document.getElementById("promo-code").value.trim().toUpperCase(), discount_type: document.getElementById("promo-type").value, discount_value: Number(document.getElementById("promo-value").value), usage_limit: document.getElementById("promo-limit").value ? Number.parseInt(document.getElementById("promo-limit").value, 10) : null, is_active: document.getElementById("promo-active").checked }; const result = id ? await supabase.from("promo_codes").update(payload).eq("id", id) : await supabase.from("promo_codes").insert(payload); if (result.error) throw result.error; clearPromoForm(); await refreshDashboard(); setAlert("Promo code saved."); } catch (error) { setAlert(error?.message || "Could not save promo code.", true); } });
 document.getElementById("cancel-promo").addEventListener("click", clearPromoForm);
+menuToggle?.addEventListener("click", (event) => { event.stopPropagation(); const open = menu.hidden; menu.hidden = !open; menuToggle.setAttribute("aria-expanded", String(open)); });
+document.addEventListener("click", (event) => { if (menu && !menu.hidden && !menu.contains(event.target) && !menuToggle.contains(event.target)) { menu.hidden = true; menuToggle.setAttribute("aria-expanded", "false"); } });
+document.addEventListener("keydown", (event) => { if (event.key === "Escape" && menu) { menu.hidden = true; menuToggle?.setAttribute("aria-expanded", "false"); } });
 
-menuToggle?.addEventListener("click", (event) => {
-  event.stopPropagation();
-  const open = menu.hidden;
-  menu.hidden = !open;
-  menuToggle.setAttribute("aria-expanded", String(open));
-});
-document.addEventListener("click", (event) => {
-  if (menu && !menu.hidden && !menu.contains(event.target) && !menuToggle.contains(event.target)) {
-    menu.hidden = true;
-    menuToggle.setAttribute("aria-expanded", "false");
-  }
-});
-
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && menu) {
-    menu.hidden = true;
-    menuToggle?.setAttribute("aria-expanded", "false");
-  }
-});
-
-(async function boot() {
-  try {
-    const user = await assertAdmin();
-    if (!user) {
-      showLogin();
-      return;
-    }
-    showApp(user);
-    await refreshDashboard();
-  } catch (error) {
-    showLogin();
-    if (error?.message && error.message !== "ADMIN_ACCESS_REQUIRED") setLoginAlert(error.message);
-  }
-})();
+(async function boot() { try { const user = await assertAdmin(); if (!user) { showLogin(); return; } showApp(user); await refreshDashboard(); } catch (error) { showLogin(); if (error?.message && error.message !== "ADMIN_ACCESS_REQUIRED") setLoginAlert(error.message); } })();
