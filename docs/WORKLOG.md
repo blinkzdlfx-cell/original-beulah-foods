@@ -20,7 +20,7 @@ Verified:
 - Paystack payment-attempt creation function exists.
 - Paystack payment finalization function exists.
 - Reservation expiration/release function exists.
-- `pg_cron` reservation cleanup job is active at five-minute intervals.
+- `pg_cron` reservation cleanup job is active at five-minute intervals, with recent runs succeeding.
 - RLS policies protect customer-owned orders, order items, payments and profiles.
 - Admin policies use `private.is_admin()`.
 
@@ -65,7 +65,7 @@ Connected the admin Orders and Transactions pages to the authoritative Supabase 
 
 A repository `.gitignore` now protects `.env*`, `.dev.vars*`, and Wrangler local state while retaining `.env.example`.
 
-The secrets are intentionally not stored in Git.
+The secrets are intentionally not stored in Git. Because this rebuild is still test-only, `PAYSTACK_SECRET_KEY` must be the Paystack **test-mode** secret (`sk_test_...`), not a live key. Paystack maintains separate test and live keys/environments.
 
 ### Provider fee record
 
@@ -77,9 +77,9 @@ The application does not currently pass Paystack transaction fees to customers. 
 
 These cannot be safely committed to the repository:
 
-1. Set `PAYSTACK_SECRET_KEY` in the deployed Cloudflare Worker.
+1. Set the Paystack **test** secret key in the deployed Cloudflare Worker as `PAYSTACK_SECRET_KEY`.
 2. Set `SUPABASE_SERVICE_ROLE_KEY` in the deployed Cloudflare Worker.
-3. Set the Paystack Dashboard webhook URL to the deployed storefront origin plus `/api/paystack/webhook`.
+3. Set the Paystack Dashboard **test-mode** webhook URL to the deployed storefront origin plus `/api/paystack/webhook`.
 4. Verify the deployed Worker route is serving the new API implementation.
 
 ### Still requiring behavioral acceptance tests
