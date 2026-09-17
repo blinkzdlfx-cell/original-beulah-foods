@@ -3,40 +3,8 @@
   position: relative;
   display: grid;
   place-items: center;
-  overflow: hidden;
   padding: 64px 20px 88px;
   background: var(--color-bg);
-  isolation: isolate;
-}
-
-/* Quiet geometric motion inspired by modern developer-product auth pages. */
-.auth-page::before,
-.auth-page::after {
-  position: absolute;
-  z-index: -1;
-  pointer-events: none;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-weight: 500;
-  line-height: 1;
-  color: rgba(62, 207, 142, .22);
-  animation: auth-float 8s ease-in-out infinite;
-}
-
-.auth-page::before {
-  content: "+";
-  top: 17%;
-  left: 10%;
-  font-size: 76px;
-  transform: rotate(-8deg);
-}
-
-.auth-page::after {
-  content: "−";
-  right: 11%;
-  bottom: 17%;
-  font-size: 94px;
-  color: rgba(62, 207, 142, .16);
-  animation-delay: -3.5s;
 }
 
 .auth-shell {
@@ -51,17 +19,6 @@
   box-shadow: var(--shadow-md);
 }
 
-.auth-shell::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: .7;
-  background-image: radial-gradient(circle at 14% 18%, rgba(62,207,142,.24) 1px, transparent 1.5px), radial-gradient(circle at 86% 74%, rgba(62,207,142,.18) 1px, transparent 1.5px);
-  background-size: 22px 22px, 28px 28px;
-  mask-image: linear-gradient(135deg, rgba(0,0,0,.65), transparent 45%, transparent 55%, rgba(0,0,0,.45));
-}
-
 .auth-intro {
   position: relative;
   min-height: 620px;
@@ -71,19 +28,6 @@
   justify-content: space-between;
   background: var(--color-accent);
   color: var(--color-accent-ink);
-  overflow: hidden;
-}
-
-.auth-intro::after {
-  content: "•••   +   −";
-  position: absolute;
-  right: 26px;
-  bottom: 26px;
-  color: rgba(7,53,31,.22);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 18px;
-  letter-spacing: .35em;
-  animation: auth-symbol-shift 7s ease-in-out infinite;
 }
 
 .auth-intro__brand {
@@ -99,53 +43,36 @@
 .auth-intro__mark {
   width: 40px;
   height: 40px;
-  display: grid;
-  place-items: center;
+  display: block;
+  object-fit: contain;
   border-radius: 50%;
-  background: #fff url("/assets/beulah-logo.webp") center/contain no-repeat;
-  color: transparent;
+  background: #fff;
   border: 1px solid rgba(7,53,31,.10);
 }
 
-.auth-intro__content { position:relative; z-index:1; margin-top:80px; }
-.auth-intro h1 { margin:0; font-family:var(--font-display); font-size:clamp(2.4rem,5vw,4.2rem); line-height:1.02; letter-spacing:-.055em; color:var(--color-accent-ink); }
-.auth-intro p { max-width:360px; margin:18px 0 0; color:rgba(7,53,31,.72); line-height:1.7; }
-.auth-intro__content .eyebrow { color:rgba(7,53,31,.68); }
-.auth-intro__content .eyebrow::before { background:rgba(7,53,31,.55); }
+.auth-intro__content { position: relative; z-index: 1; margin-top: 80px; }
+.auth-intro h1 { margin: 0; font-family: var(--font-display); font-size: clamp(2.4rem, 5vw, 4.2rem); line-height: 1.02; letter-spacing: -.055em; color: var(--color-accent-ink); }
+.auth-intro p { max-width: 360px; margin: 18px 0 0; color: rgba(7,53,31,.72); line-height: 1.7; }
+.auth-intro__content .eyebrow { color: rgba(7,53,31,.68); }
+.auth-intro__content .eyebrow::before { background: rgba(7,53,31,.55); }
 
-.auth-card { position:relative; z-index:1; padding:clamp(30px,5vw,58px); background:var(--color-surface); }
-.auth-page > .auth-card { width:min(520px,100%); }
-.auth-card h1 { margin:0; font-family:var(--font-display); font-size:clamp(2rem,5vw,2.8rem); line-height:1.05; letter-spacing:-.045em; }
-.auth-card__subtitle { color:var(--color-text-muted); margin:8px 0 28px; }
-.auth-card form { margin-top:var(--space-4); }
-.auth-card .form-field input { min-height:50px; }
-.auth-card .btn { width:100%; margin-top:var(--space-2); }
-.auth-card__footer { margin-top:18px; font-size:.92rem; text-align:center; color:var(--color-text-muted); }
-.auth-card__footer a { color:var(--color-accent-dark); font-weight:700; text-decoration:none; }
-.auth-card__footer a:hover { text-decoration:underline; }
+.auth-card { position: relative; z-index: 1; padding: clamp(30px, 5vw, 58px); background: var(--color-surface); }
+.auth-page > .auth-card { width: min(520px,100%); }
+.auth-card h1 { margin: 0; font-family: var(--font-display); font-size: clamp(2rem,5vw,2.8rem); line-height: 1.05; letter-spacing: -.045em; }
+.auth-card__subtitle { color: var(--color-text-muted); margin: 8px 0 28px; }
+.auth-card form { margin-top: var(--space-4); }
+.auth-card .form-field input { min-height: 50px; }
+.auth-card .btn { width: 100%; margin-top: var(--space-2); }
+.auth-card__footer { margin-top: 18px; font-size: .92rem; text-align: center; color: var(--color-text-muted); }
+.auth-card__footer a { color: var(--color-accent-dark); font-weight: 700; text-decoration: none; }
+.auth-card__footer a:hover { text-decoration: none; }
 
-@keyframes auth-float {
-  0%,100% { translate:0 0; opacity:.7; }
-  50% { translate:0 -14px; opacity:1; }
-}
-
-@keyframes auth-symbol-shift {
-  0%,100% { transform:translateX(0); opacity:.55; }
-  50% { transform:translateX(-8px); opacity:.9; }
-}
-
-@media (max-width:760px) {
-  .auth-page { min-height:calc(100vh - 66px); padding:30px 12px 52px; }
-  .auth-page::before { top:8%; left:3%; font-size:56px; }
-  .auth-page::after { right:3%; bottom:8%; font-size:70px; }
-  .auth-shell { grid-template-columns:1fr; border-radius:12px; }
-  .auth-intro { min-height:0; padding:28px 24px 34px; }
-  .auth-intro__content { margin-top:44px; }
-  .auth-intro h1 { font-size:2.35rem; }
-  .auth-intro p { margin-top:10px; font-size:.92rem; }
-  .auth-card { padding:30px 22px 34px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .auth-page::before,.auth-page::after,.auth-intro::after { animation:none; }
+@media (max-width: 760px) {
+  .auth-page { min-height: calc(100vh - 66px); padding: 30px 12px 52px; }
+  .auth-shell { grid-template-columns: 1fr; border-radius: 12px; }
+  .auth-intro { min-height: 0; padding: 28px 24px 34px; }
+  .auth-intro__content { margin-top: 44px; }
+  .auth-intro h1 { font-size: 2.35rem; }
+  .auth-intro p { margin-top: 10px; font-size: .92rem; }
+  .auth-card { padding: 30px 22px 34px; }
 }
