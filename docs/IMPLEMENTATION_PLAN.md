@@ -15,37 +15,56 @@
 - [x] Make frontend page/asset URLs relative to the canonical deployed origin.
 - [x] Rebuild cart manager around localStorage-first state and change-driven updates.
 - [x] Add Cloudflare static Worker configuration without payment mocks.
-- [ ] Review page modules for old backend/payment coupling after the new Supabase contract exists.
-- [ ] Preserve customer-facing visual design while removing old backend/payment coupling.
+- [x] Review checkout/payment page modules against the new Cloudflare boundary.
+- [x] Remove direct customer-side Paystack integration; checkout now calls the Worker boundary.
 
 ## Phase 2 — new Supabase
 
-- [ ] Create new Supabase project.
-- [ ] Apply clean migrations for auth/profile, catalogue, orders, order items, reservations, payments, promotions, and delivery settings.
-- [ ] Implement trusted pending-order creation.
-- [ ] Implement reservation expiry/release scheduler.
-- [ ] Implement idempotent payment finalization.
-- [ ] Verify RLS and function grants.
+- [x] Create new Supabase project.
+- [x] Apply clean migrations for auth/profile, catalogue, orders, order items, reservations, payments, promotions, and delivery settings.
+- [x] Implement trusted pending-order creation.
+- [x] Implement reservation expiry/release scheduler.
+- [x] Implement idempotent payment finalization.
+- [x] Verify RLS and privileged function grants.
+- [x] Make payment-attempt creation idempotent for repeated initialization requests.
 
 ## Phase 3 — Cloudflare payment boundary
 
 - [x] Establish static storefront Worker configuration.
-- [ ] Add `/api/paystack/initialize`.
-- [ ] Add `/api/paystack/verify`.
-- [ ] Add `/api/paystack/webhook`.
-- [ ] Store Paystack secret only in Cloudflare Worker secrets.
-- [ ] Authenticate Cloudflare-to-Supabase server requests.
-- [ ] Keep payment finalization authoritative in Supabase.
+- [x] Add `/api/paystack/initialize`.
+- [x] Add `/api/paystack/verify`.
+- [x] Add `/api/paystack/webhook`.
+- [x] Declare Paystack and Supabase service credentials as required Worker secrets.
+- [x] Authenticate customer requests at the Worker boundary with Supabase Auth.
+- [x] Authenticate Worker-to-Supabase privileged requests with the service-role credential.
+- [x] Keep payment finalization authoritative in Supabase.
+- [x] Validate Paystack webhook HMAC SHA-512 signatures before processing.
+- [x] Convert Paystack kobo amounts to NGN before Supabase finalization.
+- [x] Keep callback verification and webhook finalization on the same idempotent DB finalizer.
 
 ## Phase 4 — integration
 
-- [ ] Connect new Supabase project to the application.
-- [ ] Connect Cloudflare project to this GitHub repository.
-- [ ] Configure Paystack callback URL.
-- [ ] Configure Paystack webhook URL.
-- [ ] Verify every URL and secret location before testing money movement.
+- [x] Connect the application to the new Supabase project.
+- [x] Connect the Worker code to the repository and static assets.
+- [x] Configure the callback route in the Worker implementation as `<request-origin>/payment-callback.html`.
+- [ ] Configure the Paystack dashboard webhook URL to `https://<storefront-origin>/api/paystack/webhook`.
+- [ ] Configure `PAYSTACK_SECRET_KEY` in the deployed Cloudflare Worker.
+- [ ] Configure `SUPABASE_SERVICE_ROLE_KEY` in the deployed Cloudflare Worker.
+- [ ] Verify deployed Worker routes from the public storefront origin.
+- [ ] Verify every external URL and secret location before live money movement.
 
-## Phase 5 — acceptance testing
+## Phase 5 — admin foundation
+
+- [x] Admin authentication and `is_admin()` authorization.
+- [x] Catalogue/category management.
+- [x] Delivery settings management.
+- [x] Promo-code management.
+- [x] Admin orders page connected to Supabase.
+- [x] Admin transactions page connected to Supabase.
+- [ ] Provision and verify a real admin account.
+- [ ] Run admin read/write acceptance tests.
+
+## Phase 6 — acceptance testing
 
 - [ ] Auth signup/login/session.
 - [ ] Cart persistence across page loads and reloads.
@@ -58,5 +77,15 @@
 - [ ] Failed payment and cancellation.
 - [ ] Late payment handling.
 - [ ] Stock/reservation/order/payment invariants.
+- [ ] Full customer checkout test with a Paystack test transaction.
+- [ ] Full admin acceptance test.
+- [ ] Easter test.
+
+## Phase 7 — release gate
+
+- [ ] All automated/static checks pass.
+- [ ] All external integrations pass in the test environment.
+- [ ] No unresolved database/repository contract inconsistencies remain.
+- [ ] No production resources are changed until the release gate is explicitly approved.
 
 No production resources are part of this rebuild until the complete test environment passes.
