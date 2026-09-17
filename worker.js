@@ -46,9 +46,7 @@ function koboToNgn(kobo) {
 
 async function supabaseRequest(env, path, { method = "GET", body, accessToken } = {}) {
   const secret = requireSecret(env, "SUPABASE_SECRET_KEY");
-  const headers = {
-    apikey: secret,
-  };
+  const headers = { apikey: secret };
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
   if (body !== undefined) headers["Content-Type"] = "application/json";
 
@@ -168,9 +166,7 @@ async function initializePaystack(request, env) {
   const amountNgn = String(payment?.amount ?? "").trim();
   const amountKobo = ngnToKobo(amountNgn);
   const reference = String(payment?.reference || "");
-  if (amountKobo === null || !reference) {
-    return json({ error: "PAYMENT_ATTEMPT_INVALID" }, 500);
-  }
+  if (amountKobo === null || !reference) return json({ error: "PAYMENT_ATTEMPT_INVALID" }, 500);
 
   const callbackUrl = `${new URL(request.url).origin}/payment-callback.html`;
   const paystack = await paystackRequest(env, "/transaction/initialize", {
@@ -263,9 +259,7 @@ async function verifyPaystack(request, env) {
   const payment = await getPaymentForCustomer(env, reference, auth.user.id);
   if (!payment) return json({ error: "PAYMENT_NOT_FOUND" }, 404);
 
-  const paystack = await paystackRequest(env, `/transaction/verify/${encodeURIComponent(reference)}`, {
-    method: "GET",
-  });
+  const paystack = await paystackRequest(env, `/transaction/verify/${encodeURIComponent(reference)}`, { method: "GET" });
   if (!paystack.response.ok || !paystack.data?.status || !paystack.data?.data) {
     return json({ error: "PAYMENT_VERIFICATION_FAILED" }, 502);
   }
@@ -316,9 +310,7 @@ async function handleWebhook(request, env) {
   const rawBody = await request.text();
   const signature = request.headers.get("x-paystack-signature") || "";
   const secret = requireSecret(env, "PAYSTACK_SECRET_KEY");
-  if (!(await verifyPaystackSignature(rawBody, signature, secret))) {
-    return json({ error: "INVALID_WEBHOOK_SIGNATURE" }, 401);
-  }
+  if (!(await verifyPaystackSignature(rawBody, signature, secret))) return json({ error: "INVALID_WEBHOOK_SIGNATURE" }, 401);
 
   let event;
   try {
@@ -327,9 +319,7 @@ async function handleWebhook(request, env) {
     return json({ error: "INVALID_JSON" }, 400);
   }
 
-  if (event?.event !== "charge.success") {
-    return json({ received: true, ignored: true });
-  }
+  if (event?.event !== "charge.success") return json({ received: true, ignored: true });
 
   const data = event?.data;
   const reference = String(data?.reference || "").trim();
@@ -349,6 +339,58 @@ async function handleWebhook(request, env) {
     console.error("Paystack webhook finalization failed", error);
     return json({ error: "PAYMENT_FINALIZATION_FAILED" }, 502);
   }
+}
+
+const STOREFRONT_PAGES = new Set([
+  "login", "signup", "forgot-password", "reset-password", "verification-success",
+  "account", "shop", "product", "cart", "checkout", "orders", "order",
+  "payment-callback",
+]);
+
+function assetRequest(request, env) {
+  const url = new URL(request.url);
+  const path = url.pathname;
+
+  if (path === "/") {
+    url.pathname = "/storefront/index.html";
+    return env.ASSETS.fetch(new Request(url, request));
+  }
+
+  if (path === "/admin") {
+    return Response.redirect(new URL("/admin/", request.url), 301);
+  }
+
+  if (path === "/admin/") {
+    url.pathname = "/admin/index.html";
+    return env.ASSETS.fetch(new Request(url, request));
+  }
+
+  if (path === "/storefront/" || path === "/storefront/index.html") {
+    url.pathname = "/storefront/index.html";
+    return env.ASSETS.fetch(new Request(url, request));
+  }
+
+  if (path.startsWith("/storefront/") && path.endsWith(".html")) {
+    const filename = path.slice("/storefront/".length);
+    return Response.redirect(new URL(`/${filename}`, request.url), 301);
+  }
+
+  const rootHtml = path.match(/^\/([^/]+)\.html$/);
+  if (rootHtml) {
+    const name = rootHtml[1];
+    if (STOREFRONT_PAGES.has(name)) {
+      url.pathname = `/storefront/${name}.html`;
+      return env.ASSETS.fetch(new Request(url, request));
+    }
+    url.pathname = `/storefront/${name}.html`;
+    return env.ASSETS.fetch(new Request(url, request));
+  }
+
+  if (!path.startsWith("/admin") && !path.startsWith("/storefront")) {
+    url.pathname = `/storefront${path}`;
+  }
+
+  return env.ASSETS.fetch(new Request(url, request));
 }
 
 export default {
@@ -371,17 +413,11 @@ export default {
         return await handleWebhook(request, env);
       }
 
-      const assetUrl = new URL(request.url);
-      if (!assetUrl.pathname.startsWith("/admin") && !assetUrl.pathname.startsWith("/storefront")) {
-        assetUrl.pathname = `/storefront${assetUrl.pathname === "/" ? "/index.html" : assetUrl.pathname}`;
-      }
-      return env.ASSETS.fetch(new Request(assetUrl, request));
+      return await assetRequest(request, env);
     } catch (error) {
       console.error(error);
       const message = error?.message || "INTERNAL_SERVER_ERROR";
-      if (message.startsWith("SERVER_SECRET_NOT_CONFIGURED:")) {
-        return json({ error: "PAYMENT_SERVER_NOT_CONFIGURED" }, 503);
-      }
+      if (message.startsWith("SERVER_SECRET_NOT_CONFIGURED:")) return json({ error: "PAYMENT_SERVER_NOT_CONFIGURED" }, 503);
       return json({ error: "INTERNAL_SERVER_ERROR" }, 500);
     }
   },
