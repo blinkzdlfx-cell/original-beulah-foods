@@ -8,8 +8,8 @@
 </div>
 <script type="module">
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from "../js/config.js";
-const supabase=createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{storageKey:"beulah-storefront-auth"}});
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "../../js/config.js";
+const supabase=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{storageKey:"beulah-storefront-auth"}});
 const rows=document.getElementById("rows"),status=document.getElementById("status"),pagination=document.getElementById("order-pagination");
 const money=new Intl.NumberFormat("en-NG",{style:"currency",currency:"NGN",maximumFractionDigits:2}); const PAGE_SIZE=25; let page=0;
 function escapeHtml(value){return String(value??"").replace(/[&<>\"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
