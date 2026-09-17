@@ -53,12 +53,14 @@ async function init() {
   }
 
   try {
-    const response = await fetch(
-      `/api/paystack/verify?reference=${encodeURIComponent(reference)}`,
-      {
-        headers: { Authorization: `Bearer ${session.access_token}` },
+    const response = await fetch("/api/paystack/verify", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
       },
-    );
+      body: JSON.stringify({ reference }),
+    });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data?.error || "PAYMENT_VERIFICATION_FAILED");
 
@@ -75,26 +77,26 @@ async function init() {
         message.textContent = "Your payment has been verified and your order is now paid.";
         show("Payment confirmed.", "success");
       }
-      if (data.order_id)
+      if (data.order_id) {
         setTimeout(() => {
           window.location.href = `/order.html?id=${encodeURIComponent(data.order_id)}`;
         }, 1200);
+      }
       return;
     }
 
-    if (data.payment_status === "failed") {
-      clearRememberedCheckoutOrder();
+    if (["failed", "abandoned"].includes(data.payment_status)) {
       title.textContent = "Payment not completed";
       message.textContent =
-        "Paystack reported that this payment attempt failed. You can return to your orders and try again if the order is still reserved.";
+        "Paystack did not confirm a successful payment. If the reservation is still active, you can retry from My Orders.";
       show("Payment was not confirmed.", "error");
       return;
     }
 
-    title.textContent = "Payment not completed";
+    title.textContent = "Payment pending";
     message.textContent =
-      "This payment attempt was not completed. Your order can still be retried while its reservation is active.";
-    show("Your payment was not completed. You can retry from My Orders.");
+      "Paystack has not reported a successful payment yet. Check My Orders before starting another payment.";
+    show("Payment is still pending.");
   } catch (error) {
     console.error(error);
     title.textContent = "Payment status unavailable";
