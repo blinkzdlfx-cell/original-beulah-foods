@@ -248,3 +248,20 @@ Planned, not yet implemented:
 - Group F: Final documentation/context pass, including worklog/feature documentation and AI-assistant documentation status.
 
 No implementation was performed for Groups A–C by this documentation update. Production resources remain out of scope.
+
+## Phase D–F completion — 2026-09-18
+
+### Phase D — admin loading states
+- Added explicit loading rows to the Orders and Transactions data tables so an empty table is not mistaken for an empty database while the request is in flight.
+- Existing save buttons already expose busy states for supported admin forms; How To save actions use Saving… states.
+
+### Phase E — announcements
+- Added the authoritative public `announcements` table with page targeting, display sequence, display mode, optional image, scheduling window, and active state.
+- Added RLS: public users can read only currently active/in-window announcements; authenticated administrators can manage records.
+- Added the `announcement-images` public-read storage bucket with 5 MB JPG/PNG/WebP limits and admin-only writes.
+- Added Admin Announcements page with create/edit/publish/unpublish, image upload, target page, display mode, scheduling, and sequence controls.
+- Added storefront announcement service/component and enabled it on Home, Shop, How To, Cart, Checkout, and My Account. No mock announcement records were inserted.
+
+### Phase F — documentation/context
+- Recorded this D–F implementation in this worklog.
+- Kept the release gate and external Paystack configuration explicitly pending; no production resources were changed.
