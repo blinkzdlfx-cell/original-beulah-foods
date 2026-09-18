@@ -9,6 +9,16 @@ let pendingRetry = null;
 
 const CSS_HREF = "/storefront/css/ai-assistant.css";
 
+const AI_COMMAND_HINTS = Object.freeze([
+  "/add · add a product",
+  "/remove · remove a product",
+  "/products · check products",
+  "/cart · review cart",
+  "/reserve · reserve items",
+  "/cancel · cancel reservation",
+  "/help · help & contact",
+]);
+
 const NAVIGATION_TARGETS = Object.freeze({
   cart: "/cart.html", checkout: "/checkout.html", orders: "/orders.html", account: "/account.html", shop: "/shop.html", how_to: "/how-to.html",
 });
@@ -276,6 +286,38 @@ function addMessage(role, content, actions = [], options = {}) {
 
 function removeThinking() {
   getList()?.querySelector(".beulah-ai__thinking")?.remove();
+  updateCommandHintVisibility();
+}
+
+function updateCommandHintVisibility() {
+  const root = document.querySelector(".beulah-ai");
+  const hint = root?.querySelector(".beulah-ai__command-hint");
+  const input = root?.querySelector(".beulah-ai__input");
+  if (!hint || !input) return;
+
+  const hasText = Boolean(String(input.value || "").trim());
+  const isBusy = Boolean(root.querySelector(".beulah-ai__thinking"));
+  hint.classList.toggle("is-active", !hasText && (isBusy || document.activeElement === input || !input.value));
+}
+
+function startCommandHintCycle(root) {
+  const hint = root.querySelector(".beulah-ai__command-hint");
+  const text = hint?.querySelector(".beulah-ai__command-hint-text");
+  if (!hint || !text) return;
+
+  let index = 0;
+  const show = () => {
+    text.classList.remove("is-visible");
+    window.setTimeout(() => {
+      text.textContent = AI_COMMAND_HINTS[index];
+      text.classList.add("is-visible");
+      index = (index + 1) % AI_COMMAND_HINTS.length;
+      updateCommandHintVisibility();
+    }, 180);
+  };
+
+  show();
+  window.setInterval(show, 3000);
 }
 
 function getActionStatus(text) {
@@ -525,6 +567,10 @@ function buildAssistant() {
 
       <form class="beulah-ai__form">
         <div class="beulah-ai__input-wrap">
+          <div class="beulah-ai__command-hint" aria-live="polite" aria-label="Available Beulah AI commands">
+            <span class="beulah-ai__command-hint-label">Commands</span>
+            <span class="beulah-ai__command-hint-text"></span>
+          </div>
           <textarea
             class="beulah-ai__input"
             rows="1"
@@ -616,7 +662,13 @@ export function initAiAssistant() {
     sendMessage(input.value, send);
   });
 
-  input.addEventListener("input", () => resizeComposer(input));
+  input.addEventListener("input", () => {
+    resizeComposer(input);
+    updateCommandHintVisibility();
+  });
+  input.addEventListener("focus", updateCommandHintVisibility);
+
+  startCommandHintCycle(root);
 
   initAiSlashCommands({
     root,
@@ -644,4 +696,5 @@ export function initAiAssistant() {
   });
 
   loadConversationHistory();
+  updateCommandHintVisibility();
 }
