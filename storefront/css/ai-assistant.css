@@ -436,12 +436,12 @@
 }
 
 .beulah-ai__scroll-down {
-  position: sticky;
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
   z-index: 4;
-  align-self: flex-end;
   width: 36px;
   height: 36px;
-  margin: 0 0 -36px;
   display: grid;
   place-items: center;
   border: 1px solid #d4dfd1;
