@@ -26,7 +26,9 @@ function renderMessage(role, text, actions = []) {
     if (actionWrap.children.length) bubble.append(actionWrap);
   }
   list.append(bubble);
-  list.scrollTop = list.scrollHeight;
+  requestAnimationFrame(() => {
+    list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
+  });
 }
 
 async function loadConversationHistory() {
@@ -94,7 +96,10 @@ function injectStyles() {
     .beulah-ai__clear { margin-left:auto; margin-right:8px; border:1px solid rgba(255,255,255,.25); border-radius:7px; padding:5px 8px; background:transparent; color:#fff; font-size:.68rem; cursor:pointer; }
     .beulah-ai__close { border:0; background:transparent; color:#fff; font-size:1.2rem; cursor:pointer; }
     .beulah-ai__notice { padding:7px 12px; border-bottom:1px solid var(--color-border,#dce4dc); background:#f5f8f2; color:#667262; font-size:.68rem; line-height:1.35; text-align:center; }
-    .beulah-ai__messages { flex:1; min-height:0; overflow:auto; overscroll-behavior:contain; padding:14px; display:grid; align-content:start; gap:10px; background:#f7f9f5; }
+    .beulah-ai__messages { position:relative; flex:1; min-height:0; overflow:auto; overscroll-behavior:contain; scroll-behavior:smooth; padding:14px; display:grid; align-content:start; gap:10px; background:#f7f9f5; }
+    .beulah-ai__scroll-down { position:absolute; right:12px; bottom:10px; z-index:3; width:36px; height:36px; display:grid; place-items:center; border:1px solid #d4dfd1; border-radius:50%; background:#fff; color:#18300f; box-shadow:0 5px 18px rgba(0,0,0,.16); cursor:pointer; opacity:0; transform:translateY(8px); pointer-events:none; transition:opacity .18s ease, transform .18s ease; }
+    .beulah-ai__scroll-down.is-visible { opacity:1; transform:none; pointer-events:auto; }
+    .beulah-ai__scroll-down svg { width:18px; height:18px; }
     .beulah-ai__msg { max-width:88%; padding:10px 12px; border-radius:13px; font-size:.86rem; line-height:1.5; white-space:pre-wrap; }
     .beulah-ai__msg--user { margin-left:auto; background:#18300f; color:#fff; border-bottom-right-radius:4px; animation:beulahAiMessageIn .18s ease-out; }
     .beulah-ai__msg--assistant { background:#fff; color:#263026; border:1px solid #e0e7df; border-bottom-left-radius:4px; animation:beulahAiMessageIn .2s ease-out; }
@@ -141,6 +146,7 @@ async function sendMessage(input, sendButton) {
   if (!text) return;
   input.value = "";
   addMessage("user", text);
+  input.blur();
   sendButton.disabled = true;
   sendButton.textContent = "…";
 
@@ -151,7 +157,7 @@ async function sendMessage(input, sendButton) {
   thinking.setAttribute("aria-label", "Beulah Assistant is thinking");
   thinking.innerHTML = '<span class="beulah-ai__thinking-label">Thinking</span><span class="beulah-ai__thinking-dots" aria-hidden="true"><i></i><i></i><i></i></span>';
   list?.append(thinking);
-  if (list) list.scrollTop = list.scrollHeight;
+  if (list) list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
 
   try {
     const session = await getCurrentSession();
@@ -174,11 +180,13 @@ async function sendMessage(input, sendButton) {
     applyActions(data.actions);
     thinking.remove();
     addMessage("assistant", data.message || "I could not produce a response.", data.actions || []);
+    if (list) list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
   } catch (error) {
     thinking.remove();
     addMessage("assistant", error?.message === "AUTHENTICATION_REQUIRED"
       ? "Please log in to use that customer-account action."
       : "I’m unable to complete that request right now. Please try again.");
+    if (list) list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
   } finally {
     sendButton.disabled = false;
     sendButton.textContent = "Send";
@@ -206,6 +214,9 @@ export function initAiAssistant() {
       </header>
       <div class="beulah-ai__notice">Beulah AI can make mistakes. For important information, please confirm with Beulah Foods.</div>
       <div class="beulah-ai__messages" aria-live="polite"></div>
+      <button class="beulah-ai__scroll-down" type="button" aria-label="Scroll to latest message" title="Scroll to latest message">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
       <form class="beulah-ai__form">
         <textarea class="beulah-ai__input" rows="1" maxlength="2000" placeholder="Ask about Beulah Foods…"></textarea>
         <button class="beulah-ai__send" type="submit">Send</button>
@@ -222,6 +233,23 @@ export function initAiAssistant() {
   const form = root.querySelector(".beulah-ai__form");
   const input = root.querySelector(".beulah-ai__input");
   const send = root.querySelector(".beulah-ai__send");
+  const scrollDown = root.querySelector(".beulah-ai__scroll-down");
+  const messageList = root.querySelector(".beulah-ai__messages");
+
+  const updateScrollButton = () => {
+    if (!messageList || !scrollDown) return;
+    const distanceFromBottom = messageList.scrollHeight - messageList.scrollTop - messageList.clientHeight;
+    scrollDown.classList.toggle("is-visible", distanceFromBottom > 80);
+  };
+  const scrollToLatest = (smooth = true) => {
+    if (!messageList) return;
+    messageList.scrollTo({ top: messageList.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+  };
+  messageList?.addEventListener("scroll", updateScrollButton, { passive: true });
+  scrollDown?.addEventListener("click", () => {
+    scrollToLatest(true);
+    input.focus({ preventScroll: true });
+  });
 
   toggle.addEventListener("click", () => {
     root.classList.add("is-open");
