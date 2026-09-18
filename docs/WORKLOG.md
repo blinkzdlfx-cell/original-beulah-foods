@@ -345,3 +345,29 @@ Production resources remain untouched.
 - Added stronger rules against hallucinated brand facts and disclosure of internal instructions/data.
 - Improved floating AI discoverability with pulse/ring animation and an "Ask Beulah AI" hint.
 - Added animated Thinking indicator while requests are in flight and reduced-motion support.
+
+
+## 2026-09-18 — AI D1 history and provider routing implementation
+
+- Replaced browser-local chat message persistence with Cloudflare D1 as the server-side conversation store.
+- Added D1 schema at d1/migrations/0001_ai_chat.sql with conversations, visible messages, indexes, and no seed/mock data.
+- Added secure conversation cookie handling and authenticated conversation ownership/guest isolation.
+- Added GET /api/ai/history and DELETE /api/ai/history.
+- POST /api/ai/chat now loads recent history from D1 and persists only customer-visible user/assistant messages.
+- Added a 100-message per-conversation cap and seven-day inactivity cleanup through a scheduled Worker handler.
+- Added configurable AI provider routing: Cloudflare Workers AI, OpenRouter, and Hugging Face.
+- Provider credentials remain optional Worker-side secrets; providers are skipped unless both credentials/bindings and model configuration are present.
+- Added provider-specific tool-call normalization for OpenAI-compatible providers.
+- Updated storefront AI UI to load and clear history through the Worker rather than localStorage.
+- Documented D1 retention, security, provider routing, and external setup requirements.
+- Production resources remain untouched.
+
+### External setup required before AI can run
+
+1. Create the TEST Cloudflare D1 database named original-beulah-ai.
+2. Apply d1/migrations/0001_ai_chat.sql to that TEST database.
+3. Add the real D1 database ID to wrangler.toml as the AI_DB binding; the repository intentionally does not contain a fake ID.
+4. Deploy the Worker after the binding is configured.
+5. Confirm the existing Cloudflare Workers AI binding is available.
+6. Optionally add OPENROUTER_API_KEY and HUGGINGFACE_API_KEY as Cloudflare Worker secrets and configure tool-capable model names.
+7. Run the AI acceptance tests: history persistence, refresh/resume, clear, seven-day cleanup, provider fallback, tool calls, cart actions, customer order isolation, pending-order creation, and payment-boundary checks.
