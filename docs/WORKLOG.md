@@ -326,3 +326,15 @@ No implementation was performed for Groups A–C by this documentation update. P
 
 Production resources remain untouched.
 
+## 2026-09-18 — AI knowledge base and How To retrieval
+
+- Confirmed the existing How To database is the source of truth for customer ordering instructions and product preparation guides.
+- Added the controlled `get_how_to` AI tool for How To Order and cooking/preparation content.
+- Added TEST Supabase `ai_knowledge` table with title, category, content, tags, active status, timestamps, and PostgreSQL full-text search support.
+- Added admin-only RLS to the AI knowledge table.
+- Added `search_ai_knowledge` RPC for controlled active-entry retrieval.
+- Added `/admin/knowledge.html` and its admin JavaScript for creating, editing, activating/deactivating, and deleting AI knowledge.
+- Added AI Knowledge to the admin navigation.
+- Updated AI architecture, tool contract, security contract, and implementation plan documentation.
+- The current retrieval layer is PostgreSQL full-text search. Semantic/vector retrieval is deliberately deferred until the knowledge corpus justifies the additional indexing/embedding infrastructure.
+- Production remains untouched.
