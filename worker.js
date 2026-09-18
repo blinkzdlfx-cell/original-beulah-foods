@@ -362,7 +362,9 @@ const AI_SYSTEM_PROMPT = [
 ].join(" ");
 
 const AI_TOOLS = [
-  {name:"get_categories",description:"List active Beulah Foods product categories.",parameters:{type:"object",properties:{},additionalProperties:false}},
+
+  {name:"get_how_to",description:"Read Beulah Foods customer instructions. Use type order for ordering instructions, or type cooking for preparation guides; optionally provide a product_id or product_slug.",parameters:{type:"object",properties:{type:{type:"string",enum:["order","cooking"]},product_id:{type:"string"},product_slug:{type:"string"},limit:{type:"integer",minimum:1,maximum:5}},required:["type"],additionalProperties:false}},
+  {name:"search_ai_knowledge",description:"Search the Beulah Foods admin-maintained knowledge base for current FAQs, ordering, cooking, product, delivery, policy, and general information.",parameters:{type:"object",properties:{query:{type:"string"},limit:{type:"integer",minimum:1,maximum:8}},required:["query"],additionalProperties:false}},  {name:"get_categories",description:"List active Beulah Foods product categories.",parameters:{type:"object",properties:{},additionalProperties:false}},
   {name:"search_products",description:"Search active Beulah Foods products by name, description, or category slug. Returns current price and available stock.",parameters:{type:"object",properties:{query:{type:"string"},category_slug:{type:"string"},limit:{type:"integer",minimum:1,maximum:8}},additionalProperties:false}},
   {name:"get_product",description:"Get one active product by product ID or slug, including current price and available stock.",parameters:{type:"object",properties:{product_id:{type:"string"},slug:{type:"string"}},additionalProperties:false}},
   {name:"get_store_policies",description:"Read the current Privacy Policy or Terms of Service.",parameters:{type:"object",properties:{document:{type:"string",enum:["privacy","terms"]}},required:["document"],additionalProperties:false}},
