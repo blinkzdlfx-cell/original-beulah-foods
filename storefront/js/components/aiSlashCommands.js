@@ -1,5 +1,6 @@
 const COMMANDS = Object.freeze([
   { id: "add", label: "Add to cart", description: "Find a product and add it to your cart.", prompt: "Add a product to my cart", send: false },
+  { id: "remove", label: "Remove from cart", description: "Find a product and remove it from your cart.", prompt: "Remove a product from my cart", send: false },
   { id: "products", label: "Check products", description: "Find products, prices, and current stock.", prompt: "Show me the products available right now", send: false },
   { id: "cart", label: "Review cart", description: "Review the products currently in my cart.", prompt: "Show me my current cart", send: true },
   { id: "reserve", label: "Reserve items", description: "Reserve the items in my cart for 15 minutes.", prompt: "Reserve the items in my cart", send: true },
