@@ -114,9 +114,27 @@ Acceptance checkpoint: review both drafts before treating them as final legal co
 - Record the AI-assistant documentation investigation and confirmed architecture.
 - Preserve existing test/release-gate requirements.
 
-## AI assistant note
+## AI assistant status
 
-The production and older TEST repositories were checked for dedicated AI-assistant/chatbot documentation. No dedicated AI-assistant document was found through the repository searches performed during planning. The existing production architecture documents the storefront, admin, Supabase, and Cloudflare Worker boundaries but does not provide a confirmed chatbot implementation specification. Therefore the AI assistant remains a future implementation item and must not be invented or implemented as part of Groups A–C.
+The earlier AI-assistant architecture has now been converted into explicit repository contracts:
+
+- `docs/AI_ASSISTANT.md`
+- `docs/AI_TOOLS.md`
+- `docs/AI_SECURITY.md`
+- `docs/AI_IMPLEMENTATION_PLAN.md`
+
+Initial implementation has started in TEST:
+
+- Workers AI binding
+- `POST /api/ai/chat`
+- controlled catalogue/category/policy reads
+- customer-owned order reads
+- validated browser-cart actions
+- pending-order/reservation creation through existing checkout logic
+- pending-reservation cancellation through existing checkout logic
+- reusable storefront assistant UI
+
+The assistant remains strictly outside product/price/stock/admin mutation and Paystack control.
 
 ## Safety boundary
 
