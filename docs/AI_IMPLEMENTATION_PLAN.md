@@ -40,12 +40,15 @@
 - [x] Remove temporary AI diagnostic endpoint/configuration after debugging.
 
 ## Phase 5 — hardening
-- [ ] Durable rate limiting.
-- [ ] Abuse/cost monitoring.
-- [ ] Explicit mutation confirmation UX.
-- [ ] Automated security tests.
+- [x] Cloudflare Rate Limiting for chat requests.
+- [x] Stricter mutation rate limiting.
+- [x] Structured abuse/inference-cost monitoring through Worker Observability logs without message content.
+- [x] Explicit one-time confirmation UX for order creation and reservation cancellation.
+- [x] D1-backed confirmation expiry and cleanup.
+- [x] Static AI security contract tests.
+- [ ] Owner-run cross-customer authorization and browser acceptance tests from docs/AI_PHASE5_TEST_CHECKLIST.md.
 - [ ] Semantic/vector retrieval if the knowledge corpus requires it.
-- [ ] OpenRouter/AI Gateway fallback.
+- [ ] OpenRouter/AI Gateway fallback acceptance.
 
 ## Verification status
 
