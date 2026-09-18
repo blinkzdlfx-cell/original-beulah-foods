@@ -26,11 +26,11 @@ enabled = true
 [ai]
 binding = "AI"
 
-# TEST-only D1 binding. Create the database first, then add its real ID here.
-# [[d1_databases]]
-# binding = "AI_DB"
-# database_name = "original-beulah-ai"
-# database_id = "REPLACE_WITH_TEST_D1_DATABASE_ID"
+# TEST-only D1 binding for Beulah AI conversation history.
+[[d1_databases]]
+binding = "AI_DB"
+database_name = "original-beulah-ai"
+database_id = "2ab4c58d-40e3-43e0-a1b1-019e1f0e473a"
 
 [triggers]
 crons = ["0 2 * * *"]
