@@ -14,7 +14,7 @@ function ensureStylesheet() {
   if (styleLoaded || document.querySelector('link[data-beulah-ai-slash-styles]')) return;
   const link = document.createElement("link");
   link.rel = "stylesheet";
-  link.href = "/storefront/css/ai-slash-commands.css";
+  link.href = "/storefront/css/ai-slash-commands.css?v=1";
   link.dataset.beulahAiSlashStyles = "true";
   document.head.append(link);
   styleLoaded = true;
@@ -95,6 +95,7 @@ export function initAiSlashCommands({ root, input, onSelect }) {
   inputWrap.append(menu);
 
   input.addEventListener("input", () => renderMenu(root, input, onSelect));
+  input.addEventListener("focus", () => renderMenu(root, input, onSelect));
 
   input.addEventListener("keydown", event => {
     if (event.key === "Escape" && !menu.hidden) {
