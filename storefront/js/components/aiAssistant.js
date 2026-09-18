@@ -1,4 +1,5 @@
 import { getCurrentSession } from "../services/authService.js";
+import { initAiSlashCommands } from "./aiSlashCommands.js";
 import { getCart, addToCart, updateCartQuantity, removeFromCart } from "../services/cartService.js";
 
 let initialized = false;
@@ -616,6 +617,24 @@ export function initAiAssistant() {
   });
 
   input.addEventListener("input", () => resizeComposer(input));
+
+  initAiSlashCommands({
+    root,
+    input,
+    onSelect: command => {
+      if (command.send) {
+        input.value = "";
+        resizeComposer(input);
+        sendMessage(command.prompt, send);
+        return;
+      }
+
+      input.value = command.prompt;
+      resizeComposer(input);
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    },
+  });
 
   input.addEventListener("keydown", event => {
     if (event.key === "Enter" && !event.shiftKey) {
