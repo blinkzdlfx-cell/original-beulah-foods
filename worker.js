@@ -583,6 +583,31 @@ async function resolveProductReference(env,query,{categorySlug,limit=5}={}) {
   };
 }
 
+async function searchActiveProducts(env,{query,categorySlug,limit=8}={}) {
+  const safeLimit=Math.min(8,Math.max(1,Number.parseInt(limit,10)||8));
+  const params=new URLSearchParams({
+    select:"id,category_id,name,slug,description,price,stock_quantity,image_path,is_featured,categories(name,slug)",
+    is_active:"eq.true",
+    order:"sort_order.asc,name.asc",
+    limit:String(safeLimit)
+  });
+  if(categorySlug) params.set("categories.slug","eq."+String(categorySlug).trim());
+  if(query) {
+    const text=String(query).trim().replace(/[%(),]/g," ").slice(0,80);
+    if(text) params.set("or","(name.ilike.*"+text+"*,description.ilike.*"+text+"*)");
+  }
+  const {response,data}=await supabaseRequest(env,"/rest/v1/products?"+params.toString());
+  if(!response.ok || !Array.isArray(data)) throw new Error("PRODUCT_LOOKUP_FAILED");
+  const reserved=await getAvailableStock(env,data.map(row=>row.id));
+  return data.map(row=>({
+    id:row.id,name:row.name,slug:row.slug,description:row.description,
+    price_ngn:Number(row.price),
+    available_stock:Math.max(0,Number(row.stock_quantity||0)-Number(reserved.get(String(row.id))||0)),
+    category:row.categories?{name:row.categories.name,slug:row.categories.slug}:null,
+    is_featured:Boolean(row.is_featured)
+  }));
+}
+
 async function getCustomerProfileForAi(env,auth) {
   if (!auth) return null;
   const query=new URLSearchParams({select:"id,full_name,phone,address",id:"eq."+auth.user.id,limit:"1"});
@@ -711,7 +736,7 @@ async function executeAiTool(env,auth,toolName,args,context) {
     case "resolve_product":
       return await resolveProductReference(env,args?.query,{categorySlug:args?.category_slug,limit:args?.limit});
     case "search_products":
-      return {products:await getActiveProducts(env,{query:args?.query,categorySlug:args?.category_slug,limit:args?.limit})};
+      return {products:await searchActiveProducts(env,{query:args?.query,categorySlug:args?.category_slug,limit:args?.limit})};
     case "get_product": {
       if(!args?.product_id && !args?.slug) throw new Error("PRODUCT_IDENTIFIER_REQUIRED");
       const products=await getActiveProducts(env,{productId:args?.product_id,slug:args?.slug,limit:1});
