@@ -451,6 +451,183 @@ async function getStorePolicy(env,document) {
   return {document,text:stripHtml(await response.text()).slice(0,7000)};
 }
 
+
+async function executeAiTool(env,auth,toolName,args,context) {
+  const cart=context.cart;
+  const requireAuth=()=>{if(!auth) throw new Error("AUTHENTICATION_REQUIRED");};
+
+  switch(toolName) {
+    case "get_categories": {
+      const query=new URLSearchParams({select:"id,name,slug,description",is_active:"eq.true",order:"sort_order.asc,name.asc"});
+      const {response,data}=await supabaseRequest(env,"/rest/v1/categories?"+query.toString());
+      if(!response.ok || !Array.isArray(data)) throw new Error("CATEGORY_LOOKUP_FAILED");
+      return {categories:data};
+    }
+    case "search_products":
+      return {products:await getActiveProducts(env,{query:args?.query,categorySlug:args?.category_slug,limit:args?.limit})};
+    case "get_product": {
+      if(!args?.product_id && !args?.slug) throw new Error("PRODUCT_IDENTIFIER_REQUIRED");
+      const products=await getActiveProducts(env,{productId:args?.product_id,slug:args?.slug,limit:1});
+      return {product:products[0]||null};
+    }
+    case "get_store_policies":
+      return await getStorePolicy(env,String(args?.document||""));
+    case "get_my_cart": {
+      const items=[];
+      for(const item of cart) {
+        const result=await getActiveProducts(env,{productId:item.productId,limit:1});
+        items.push({product_id:item.productId,quantity:item.quantity,product:result[0]||null});
+      }
+      return {items};
+    }
+    case "get_my_orders": {
+      requireAuth();
+      const limit=Math.min(10,Math.max(1,Number.parseInt(args?.limit,10)||10));
+      const query=new URLSearchParams({
+        select:"id,order_number,status,payment_status,subtotal,discount_amount,delivery_fee,total,currency,created_at,paid_at",
+        customer_id:"eq."+auth.user.id,order:"created_at.desc",limit:String(limit)
+      });
+      const {response,data}=await supabaseRequest(env,"/rest/v1/orders?"+query.toString(),{accessToken:auth.token});
+      if(!response.ok || !Array.isArray(data)) throw new Error("ORDER_LOOKUP_FAILED");
+      return {orders:data};
+    }
+    case "get_my_order": {
+      requireAuth();
+      if(!args?.order_id && !args?.order_number) throw new Error("ORDER_IDENTIFIER_REQUIRED");
+      const query=new URLSearchParams({
+        select:"id,order_number,status,payment_status,subtotal,discount_amount,delivery_fee,total,currency,created_at,paid_at,order_items(product_id,product_name,unit_price,quantity,line_total)",
+        customer_id:"eq."+auth.user.id,limit:"1"
+      });
+      if(args.order_id) query.set("id","eq."+String(args.order_id).trim());
+      else query.set("order_number","eq."+String(args.order_number).trim());
+      const {response,data}=await supabaseRequest(env,"/rest/v1/orders?"+query.toString(),{accessToken:auth.token});
+      if(!response.ok || !Array.isArray(data)) throw new Error("ORDER_LOOKUP_FAILED");
+      return {order:data[0]||null};
+    }
+    case "add_to_cart":
+    case "update_cart": {
+      const productId=String(args?.product_id||"").trim();
+      const requested=Number.parseInt(args?.quantity,10);
+      if(!productId || !Number.isFinite(requested) || requested<1 || requested>50) throw new Error("INVALID_CART_QUANTITY");
+      const products=await getActiveProducts(env,{productId,limit:1});
+      const product=products[0];
+      if(!product) throw new Error("PRODUCT_UNAVAILABLE");
+      const existing=cart.find(item=>String(item.productId)===productId)?.quantity||0;
+      const finalQuantity=toolName==="add_to_cart"?existing+requested:requested;
+      if(finalQuantity>product.available_stock) throw new Error("INSUFFICIENT_STOCK:"+product.available_stock);
+      return {
+        action:{type:"cart",operation:toolName==="add_to_cart"?"add":"set",product_id:productId,quantity:toolName==="add_to_cart"?requested:finalQuantity},
+        product:{id:product.id,name:product.name,price_ngn:product.price_ngn,available_stock:product.available_stock}
+      };
+    }
+    case "remove_from_cart": {
+      const productId=String(args?.product_id||"").trim();
+      if(!productId) throw new Error("PRODUCT_IDENTIFIER_REQUIRED");
+      return {action:{type:"cart",operation:"remove",product_id:productId}};
+    }
+    case "create_order": {
+      requireAuth();
+      if(!cart.length) throw new Error("CART_EMPTY");
+      const profile=await getCustomerProfileForAi(env,auth);
+      if(!profile?.full_name?.trim() || !profile?.phone?.trim() || !profile?.address?.trim()) {
+        return {requires_profile:true,missing_fields:[!profile?.full_name?.trim()?"full_name":null,!profile?.phone?.trim()?"phone":null,!profile?.address?.trim()?"address":null].filter(Boolean)};
+      }
+      const {response,data}=await callCustomerRpc(env,"create_pending_order",{
+        cart_items:cart.map(item=>({productId:item.productId,quantity:item.quantity})),
+        delivery_name:profile.full_name.trim(),
+        delivery_phone:profile.phone.trim(),
+        delivery_address:profile.address.trim(),
+        requested_promo_code:String(args?.promo_code||"").trim()||null
+      },auth.token);
+      if(!response.ok) throw new Error(typeof data==="object"&&data?.message?data.message:"ORDER_CREATION_FAILED");
+      return {
+        order_created:true,order_id:data.order_id,order_number:data.order_number,reservation_id:data.reservation_id,expires_at:data.expires_at,total:data.total,discount:data.discount,
+        action:{type:"order_created",order_id:data.order_id,order_number:data.order_number,checkout_url:"/checkout.html?order="+encodeURIComponent(data.order_id)}
+      };
+    }
+    case "cancel_reservation": {
+      requireAuth();
+      const orderId=String(args?.order_id||"").trim();
+      if(!orderId) throw new Error("ORDER_IDENTIFIER_REQUIRED");
+      const {response,data}=await callCustomerRpc(env,"cancel_pending_order",{target_order_id:orderId},auth.token);
+      if(!response.ok) throw new Error(typeof data==="object"&&data?.message?data.message:"RESERVATION_CANCELLATION_FAILED");
+      return {cancelled:true,order_id:orderId,action:{type:"reservation_cancelled",order_id:orderId}};
+    }
+    default: throw new Error("UNKNOWN_AI_TOOL");
+  }
+}
+
+function normalizeAiHistory(history) {
+  if(!Array.isArray(history)) return [];
+  return history.slice(-AI_MAX_HISTORY).map(message=>{
+    const role=message?.role==="assistant"?"assistant":"user";
+    const content=String(message?.content||"").slice(0,AI_MAX_MESSAGE_CHARS);
+    return content?{role,content}:null;
+  }).filter(Boolean);
+}
+
+function extractAiText(response) {
+  const choice=response?.choices?.[0];
+  return String(choice?.message?.content||response?.response||"").trim();
+}
+
+async function runAiChat(request,env) {
+  let body;
+  try { body=await request.json(); } catch { return json({error:"INVALID_JSON"},400); }
+  const message=String(body?.message||"").trim();
+  if(!message) return json({error:"MESSAGE_REQUIRED"},400);
+  if(message.length>AI_MAX_MESSAGE_CHARS) return json({error:"MESSAGE_TOO_LONG"},413);
+
+  const auth=await authenticateCustomer(request,env);
+  const cart=sanitizeCart(body?.cart);
+  const history=normalizeAiHistory(body?.history);
+  const messages=[
+    {role:"system",content:AI_SYSTEM_PROMPT},
+    {role:"system",content:JSON.stringify({signed_in:Boolean(auth),current_cart_items:cart.length})},
+    ...history,
+    {role:"user",content:message}
+  ];
+  if(!env.AI?.run) return json({error:"AI_NOT_CONFIGURED"},503);
+
+  const actions=[];
+  let response;
+  let rounds=0;
+  while(rounds<AI_MAX_TOOL_ROUNDS) {
+    rounds+=1;
+    response=await env.AI.run(AI_MODEL,{
+      messages,
+      tools:AI_TOOLS,
+      tool_choice:"auto",
+      temperature:0.2,
+      max_tokens:900,
+      user:auth?.user?.id||"anonymous"
+    });
+    const toolCalls=Array.isArray(response?.tool_calls)?response.tool_calls:[];
+    if(!toolCalls.length) break;
+
+    messages.push({role:"assistant",content:JSON.stringify(toolCalls)});
+    for(const toolCall of toolCalls.slice(0,4)) {
+      const toolName=String(toolCall?.name||"").trim();
+      let args=toolCall?.arguments||{};
+      if(typeof args==="string") {
+        try { args=JSON.parse(args); } catch { args={}; }
+      }
+      let result;
+      try {
+        result=await executeAiTool(env,auth,toolName,args,{cart});
+      } catch(error) {
+        result=aiError(error?.message||"The requested operation could not be completed.",String(error?.message||"AI_TOOL_ERROR").split(":")[0]);
+      }
+      if(result?.action) actions.push(result.action);
+      messages.push({role:"tool",content:JSON.stringify(result)});
+    }
+  }
+
+  const text=extractAiText(response);
+  if(!text) return json({error:"AI_EMPTY_RESPONSE"},502);
+  return json({message:text,actions,model:AI_MODEL});
+}
+
 const STOREFRONT_PAGES = new Set([
   "login",
   "signup",
@@ -536,6 +713,11 @@ export default {
     const url = new URL(request.url);
 
     try {
+      if (url.pathname === "/api/ai/chat") {
+        if (request.method !== "POST") return json({ error: "METHOD_NOT_ALLOWED" }, 405, { Allow: "POST" });
+        return await runAiChat(request, env);
+      }
+
       if (url.pathname === "/api/paystack/initialize") {
         if (request.method !== "POST") return json({ error: "METHOD_NOT_ALLOWED" }, 405, { Allow: "POST" });
         return await initializePaystack(request, env);
