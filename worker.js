@@ -818,7 +818,7 @@ function conversationCookie(id,maxAge=604800){
 function aiDb(env){if(!env.AI_DB)throw new Error("AI_HISTORY_DB_NOT_CONFIGURED");return env.AI_DB;}
 
 const AI_READ_CACHE = new Map();
-const AI_READ_CACHE_TTL = { categories: 300000, how_to: 300000, policies: 300000, knowledge: 120000 };
+const AI_READ_CACHE_TTL = { products: 300000, categories: 300000, how_to: 300000, policies: 300000, knowledge: 120000 };
 
 async function cachedAiRead(key, ttl, loader) {
   const now = Date.now();
