@@ -276,3 +276,53 @@ No implementation was performed for Groups A–C by this documentation update. P
 - Confirmed the two admin accounts are already provisioned in the clean TEST project; remaining admin work is acceptance testing rather than provisioning.
 - Remaining release-gate actions requiring owner/external-dashboard access: configure the Paystack TEST webhook URL, configure the Cloudflare Worker PAYSTACK_SECRET_KEY and SUPABASE_SECRET_KEY, then execute the real Paystack TEST transaction and full callback/webhook/idempotency acceptance suite.
 - Production resources remain untouched.
+
+## 2026-09-18 — AI assistant implementation started
+
+### Architecture confirmed
+
+- The authoritative implementation repository remains `blinkzdlfx-cell/original-beulah-foods`.
+- The earlier AI-assistant design is now recorded in `docs/AI_ASSISTANT.md`, `docs/AI_TOOLS.md`, `docs/AI_SECURITY.md`, and `docs/AI_IMPLEMENTATION_PLAN.md`.
+- Cloudflare Worker remains the AI/security boundary.
+- Supabase remains the source of truth.
+- Paystack remains outside the assistant boundary.
+
+### Backend implemented
+
+- Added Workers AI binding in `wrangler.toml`.
+- Added `POST /api/ai/chat`.
+- Initial model: `@cf/zai-org/glm-4.7-flash`.
+- Added allowlisted product/category/policy read tools.
+- Added customer-owned order read tools.
+- Added browser-cart action tools.
+- Added pending-order creation through the existing authenticated `create_pending_order` RPC.
+- Added pending-reservation cancellation through the existing authenticated `cancel_pending_order` RPC.
+- Added bounded message/history/cart/tool-call limits.
+- No new database tables or payment logic were introduced.
+
+### Storefront implemented
+
+- Added reusable floating `Beulah Assistant` component.
+- Initialized it from the existing storefront navbar component, keeping admin untouched.
+- Browser cart state is sent with each assistant request.
+- Validated cart actions are applied through the existing cart service.
+- Assistant-created pending orders expose the normal checkout URL.
+
+### Verification
+
+- Worker JavaScript syntax checked successfully after implementation.
+- Assistant component JavaScript syntax checked successfully after removing module imports for parser validation.
+- Supabase TEST database verified to contain the existing public `create_pending_order` and `cancel_pending_order` wrappers required by the assistant.
+
+### Remaining AI acceptance work
+
+- Deploy the repository changes to the TEST Worker.
+- Verify Workers AI inference.
+- Verify product/stock tool results against live TEST data.
+- Verify cart actions in the browser.
+- Verify customer order isolation with two TEST customer accounts.
+- Verify pending-order creation and reservation behavior.
+- Add durable rate limiting, abuse/cost monitoring, explicit mutation confirmation, automated security tests, and the planned OpenRouter/AI Gateway fallback before production consideration.
+
+Production resources remain untouched.
+
