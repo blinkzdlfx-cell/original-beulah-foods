@@ -68,6 +68,7 @@ function ensureStyles() {
 export function initHeader(navEl) {
   if (!navEl) return;
   ensureStyles();
+  import("./aiAssistant.js").then(({ initAiAssistant }) => initAiAssistant()).catch(() => {});
 
   let lastSession = null;
   let resolved = false;
