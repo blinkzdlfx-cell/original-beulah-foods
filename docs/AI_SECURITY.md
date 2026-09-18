@@ -46,3 +46,18 @@ The endpoint bounds message length, history length, cart size, cart quantity, se
 - Add automated cross-customer authorization tests.
 - Consider semantic/vector retrieval when the curated knowledge corpus becomes large enough to need it.
 - Add the planned provider fallback only after the primary tool contract is stable.
+
+
+## D1 chat-history security and retention
+
+D1 is deliberately limited to customer-visible conversation text. Do not store access tokens, passwords, payment credentials, Paystack secrets, internal prompts, tool definitions, database credentials, admin-only information, or raw private backend responses in chat history.
+
+Conversation identifiers are 256-bit random values and are delivered in an HttpOnly, Secure, SameSite cookie scoped to /api/ai. Authenticated requests are checked against the conversation owner. Guest conversations have no customer identity and are only addressable through the high-entropy conversation cookie.
+
+History is automatically deleted after seven days of inactivity by the scheduled Worker cleanup. Each conversation is also capped at 100 stored visible messages. Only the latest 12 messages are supplied to the model for context.
+
+The storefront sends only the current browser cart to the AI endpoint. Chat history is never accepted from the browser as authoritative model context.
+
+## Provider-secret boundary
+
+OpenRouter and Hugging Face credentials are Worker secrets. They are never placed in wrangler.toml, .env files committed to GitHub, or storefront JavaScript. Provider model names and order are non-secret configuration values.
