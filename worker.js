@@ -900,14 +900,12 @@ export default {
 
     try {
       if (url.pathname === "/api/ai/history") {
-        if (request.method !== "GET") return json({ error: "METHOD_NOT_ALLOWED" }, 405, { Allow: "GET" });
-        return await getAiHistoryRoute(request, env);
-      }
-
-      if (url.pathname === "/api/ai/history") {
-        if (request.method !== "DELETE") return json({ error: "METHOD_NOT_ALLOWED" }, 405, { Allow: "DELETE" });
-        const auth = await authenticateCustomer(request, env);
-        return await clearAiConversation(env, request, auth);
+        if (request.method === "GET") return await getAiHistoryRoute(request, env);
+        if (request.method === "DELETE") {
+          const auth = await authenticateCustomer(request, env);
+          return await clearAiConversation(env, request, auth);
+        }
+        return json({ error: "METHOD_NOT_ALLOWED" }, 405, { Allow: "GET, DELETE" });
       }
 
       if (url.pathname === "/api/ai/chat") {
