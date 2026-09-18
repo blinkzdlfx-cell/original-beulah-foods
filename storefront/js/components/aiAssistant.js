@@ -77,10 +77,10 @@ function injectStyles() {
   style.id = "beulah-ai-assistant-styles";
   style.textContent = `
     .beulah-ai { position:fixed; right:18px; bottom:18px; z-index:180; font-family:inherit; }
-    .beulah-ai__toggle { position:relative; width:58px; height:58px; border:0; border-radius:50%; background:var(--color-accent,#c9f36a); color:var(--color-accent-ink,#18300f); box-shadow:0 12px 30px rgba(0,0,0,.18); font-weight:900; cursor:pointer; animation:beulahAiPulse 2.2s ease-in-out infinite; }
+    .beulah-ai__toggle { position:relative; width:58px; height:58px; display:grid; place-items:center; border:0; border-radius:50%; background:var(--color-accent,#c9f36a); color:var(--color-accent-ink,#18300f); box-shadow:0 12px 30px rgba(0,0,0,.18); cursor:pointer; animation:beulahAiPulse 2.2s ease-in-out infinite; }
     .beulah-ai__toggle::before { content:""; position:absolute; inset:-7px; border:2px solid rgba(201,243,106,.7); border-radius:50%; animation:beulahAiRing 2.2s ease-out infinite; pointer-events:none; }
     .beulah-ai__toggle::after { content:"Ask Beulah AI"; position:absolute; right:68px; top:50%; transform:translateY(-50%); white-space:nowrap; padding:7px 10px; border-radius:8px; background:#18300f; color:#fff; font-size:.72rem; font-weight:800; box-shadow:0 8px 24px rgba(0,0,0,.16); opacity:0; pointer-events:none; animation:beulahAiHint 5s ease-in-out 1s infinite; }
-    .beulah-ai__toggle:hover::after,.beulah-ai__toggle:focus-visible::after { opacity:1; animation:none; }
+    .beulah-ai__toggle:hover::after,.beulah-ai__toggle:focus-visible::after { opacity:1; animation:none; }\n    .beulah-ai.is-open .beulah-ai__toggle, .beulah-ai.is-open .beulah-ai__toggle::before, .beulah-ai.is-open .beulah-ai__toggle::after { animation:none; }\n    .beulah-ai.is-open .beulah-ai__toggle::before, .beulah-ai.is-open .beulah-ai__toggle::after { opacity:0; }\n    .beulah-ai__toggle-icon { width:25px; height:25px; display:block; }\n    .beulah-ai__toggle-icon path { vector-effect:non-scaling-stroke; }
     .beulah-ai__panel { position:absolute; right:0; bottom:72px; width:min(380px,calc(100vw - 28px)); height:min(600px,calc(100vh - 110px)); display:flex; flex-direction:column; overflow:hidden; border:1px solid var(--color-border,#dce4dc); border-radius:18px; background:var(--color-surface,#fff); box-shadow:0 24px 70px rgba(0,0,0,.18); }
     .beulah-ai__panel[hidden] { display:none; }
     .beulah-ai__head { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--color-border,#dce4dc); background:#18300f; color:#fff; }
@@ -202,7 +202,7 @@ export function initAiAssistant() {
         <button class="beulah-ai__send" type="submit">Send</button>
       </form>
     </section>
-    <button class="beulah-ai__toggle" type="button" aria-label="Ask Beulah AI" aria-expanded="false">AI</button>
+    <button class="beulah-ai__toggle" type="button" aria-label="Ask Beulah AI" aria-expanded="false"><svg class="beulah-ai__toggle-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H7l-3.5 2V11.5A7.5 7.5 0 0 1 11 4h1.5A7.5 7.5 0 0 1 20 11.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 12h.01M12 12h.01M16 12h.01" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button>
   `;
   document.body.append(root);
 
