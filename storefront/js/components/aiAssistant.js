@@ -2,7 +2,7 @@ import { getCurrentSession } from "../services/authService.js";
 import { getCart, addToCart, updateCartQuantity, removeFromCart } from "../services/cartService.js";
 
 let initialized = false;
-let messages = [];
+let messages = [];\n\nconst STORAGE_KEY = "beola_ai_chat_v1";\nconst STORAGE_TTL_MS = 48 * 60 * 60 * 1000;\n\nfunction loadStoredMessages() {\n  try {\n    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");\n    if (!saved || !Array.isArray(saved.messages) || Date.now() - saved.updatedAt > STORAGE_TTL_MS) {\n      localStorage.removeItem(STORAGE_KEY);\n      return [];\n    }\n    return saved.messages.slice(-30);\n  } catch { localStorage.removeItem(STORAGE_KEY); return []; }\n}\n\nfunction persistMessages() {\n  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ updatedAt: Date.now(), messages: messages.slice(-30) })); } catch {}\n}\n\nfunction clearStoredConversation() {\n  messages = [];\n  try { localStorage.removeItem(STORAGE_KEY); } catch {}\n  const list = document.querySelector(".beulah-ai__messages");\n  if (list) list.textContent = "";\n  addMessage("assistant", "Conversation cleared. I can help with Beulah Foods products, orders, cooking, delivery, and checkout.");\n}\n
 
 function injectStyles() {
   if (document.getElementById("beulah-ai-assistant-styles")) return;
@@ -12,15 +12,15 @@ function injectStyles() {
     .beulah-ai { position:fixed; right:18px; bottom:18px; z-index:180; font-family:inherit; }
     .beulah-ai__toggle { position:relative; width:58px; height:58px; border:0; border-radius:50%; background:var(--color-accent,#c9f36a); color:var(--color-accent-ink,#18300f); box-shadow:0 12px 30px rgba(0,0,0,.18); font-weight:900; cursor:pointer; animation:beulahAiPulse 2.2s ease-in-out infinite; }
     .beulah-ai__toggle::before { content:""; position:absolute; inset:-7px; border:2px solid rgba(201,243,106,.7); border-radius:50%; animation:beulahAiRing 2.2s ease-out infinite; pointer-events:none; }
-    .beulah-ai__toggle::after { content:"Ask Beulah AI"; position:absolute; right:68px; top:50%; transform:translateY(-50%); white-space:nowrap; padding:7px 10px; border-radius:8px; background:#18300f; color:#fff; font-size:.72rem; font-weight:800; box-shadow:0 8px 24px rgba(0,0,0,.16); opacity:0; pointer-events:none; animation:beulahAiHint 5s ease-in-out 1s 2; }
+    .beulah-ai__toggle::after { content:"Ask Beola AI"; position:absolute; right:68px; top:50%; transform:translateY(-50%); white-space:nowrap; padding:7px 10px; border-radius:8px; background:#18300f; color:#fff; font-size:.72rem; font-weight:800; box-shadow:0 8px 24px rgba(0,0,0,.16); opacity:0; pointer-events:none; animation:beulahAiHint 5s ease-in-out 1s infinite; }
     .beulah-ai__toggle:hover::after,.beulah-ai__toggle:focus-visible::after { opacity:1; animation:none; }
     .beulah-ai__panel { position:absolute; right:0; bottom:72px; width:min(380px,calc(100vw - 28px)); height:min(600px,calc(100vh - 110px)); display:flex; flex-direction:column; overflow:hidden; border:1px solid var(--color-border,#dce4dc); border-radius:18px; background:var(--color-surface,#fff); box-shadow:0 24px 70px rgba(0,0,0,.18); }
     .beulah-ai__panel[hidden] { display:none; }
     .beulah-ai__head { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--color-border,#dce4dc); background:#18300f; color:#fff; }
     .beulah-ai__head strong { display:block; font-size:.95rem; }
     .beulah-ai__head span { display:block; margin-top:2px; color:rgba(255,255,255,.7); font-size:.74rem; }
-    .beulah-ai__close { border:0; background:transparent; color:#fff; font-size:1.2rem; cursor:pointer; }
-    .beulah-ai__messages { flex:1; overflow:auto; padding:14px; display:grid; align-content:start; gap:10px; background:#f7f9f5; }
+    .beulah-ai__clear { margin-left:auto; margin-right:8px; border:1px solid rgba(255,255,255,.25); border-radius:7px; padding:5px 8px; background:transparent; color:#fff; font-size:.68rem; cursor:pointer; }\n    .beulah-ai__close { border:0; background:transparent; color:#fff; font-size:1.2rem; cursor:pointer; }
+    .beulah-ai__notice { padding:7px 12px; border-bottom:1px solid var(--color-border,#dce4dc); background:#f5f8f2; color:#667262; font-size:.68rem; line-height:1.35; text-align:center; }\n    .beulah-ai__messages { flex:1; overflow:auto; padding:14px; display:grid; align-content:start; gap:10px; background:#f7f9f5; }
     .beulah-ai__msg { max-width:88%; padding:10px 12px; border-radius:13px; font-size:.86rem; line-height:1.5; white-space:pre-wrap; }
     .beulah-ai__msg--user { margin-left:auto; background:#18300f; color:#fff; border-bottom-right-radius:4px; animation:beulahAiMessageIn .18s ease-out; }
     .beulah-ai__msg--assistant { background:#fff; color:#263026; border:1px solid #e0e7df; border-bottom-left-radius:4px; animation:beulahAiMessageIn .2s ease-out; }
@@ -49,7 +49,7 @@ function injectStyles() {
 }
 
 function addMessage(role, text, actions = []) {
-  messages.push({ role, content: text });
+  messages.push({ role, content: text });\n  persistMessages();
   const list = document.querySelector(".beulah-ai__messages");
   if (!list) return;
   const bubble = document.createElement("div");
@@ -130,7 +130,7 @@ async function sendMessage(input, sendButton) {
   }
 }
 
-export function initAiAssistant() {
+function renderStoredMessages() {\n  const stored = loadStoredMessages();\n  if (!stored.length) return;\n  messages = [];\n  for (const item of stored) addMessage(item.role, item.content);\n}\n\nexport function initAiAssistant() {
   if (initialized || document.querySelector(".admin-page")) return;
   initialized = true;
   injectStyles();
@@ -140,22 +140,22 @@ export function initAiAssistant() {
   root.innerHTML = `
     <section class="beulah-ai__panel" hidden aria-label="Beulah Foods AI assistant">
       <header class="beulah-ai__head">
-        <div><strong>Beulah AI</strong><span>Ask about Beulah Foods</span></div>
-        <button class="beulah-ai__close" type="button" aria-label="Close assistant">×</button>
+        <div><strong>Beola AI Assistant</strong><span>Beulah Foods customer assistant</span></div>
+        <button class="beulah-ai__clear" type="button" aria-label="Clear conversation">Clear</button>\n        <button class="beulah-ai__close" type="button" aria-label="Close assistant">×</button>
       </header>
-      <div class="beulah-ai__messages" aria-live="polite"></div>
+      <div class="beulah-ai__notice">Beola AI can make mistakes. For important information, please confirm with Beulah Foods.</div>\n      <div class="beulah-ai__messages" aria-live="polite"></div>
       <form class="beulah-ai__form">
         <textarea class="beulah-ai__input" rows="1" maxlength="2000" placeholder="Ask about Beulah Foods…"></textarea>
         <button class="beulah-ai__send" type="submit">Send</button>
       </form>
     </section>
-    <button class="beulah-ai__toggle" type="button" aria-label="Ask Beulah AI" aria-expanded="false">AI</button>
+    <button class="beulah-ai__toggle" type="button" aria-label="Ask Beola AI" aria-expanded="false">AI</button>
   `;
   document.body.append(root);
 
   const panel = root.querySelector(".beulah-ai__panel");
   const toggle = root.querySelector(".beulah-ai__toggle");
-  const close = root.querySelector(".beulah-ai__close");
+  const close = root.querySelector(".beulah-ai__close");\n  const clear = root.querySelector(".beulah-ai__clear");
   const form = root.querySelector(".beulah-ai__form");
   const input = root.querySelector(".beulah-ai__input");
   const send = root.querySelector(".beulah-ai__send");
@@ -166,7 +166,7 @@ export function initAiAssistant() {
     if (!messages.length) addMessage("assistant", "I can help with products, current stock, your orders, your cart, and checkout.");
     input.focus();
   });
-  close.addEventListener("click", () => {
+  clear.addEventListener("click", clearStoredConversation);\n  renderStoredMessages();\n\n  document.addEventListener("click", (event) => {\n    if (!panel.hidden && !root.contains(event.target)) {\n      panel.hidden = true;\n      toggle.setAttribute("aria-expanded", "false");\n    }\n  });\n\n  close.addEventListener("click", () => {
     panel.hidden = true;
     toggle.setAttribute("aria-expanded", "false");
   });
