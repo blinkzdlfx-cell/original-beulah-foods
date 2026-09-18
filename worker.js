@@ -610,77 +610,202 @@ async function executeAiTool(env,auth,toolName,args,context) {
   }
 }
 
-function normalizeAiHistory(history) {
-  if(!Array.isArray(history)) return [];
+
+const AI_DEFAULT_MODEL = "@cf/zai-org/glm-4.7-flash";
+const AI_HISTORY_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+const AI_MAX_STORED_MESSAGES = 100;
+const AI_CONVERSATION_COOKIE = "beulah_ai_conversation";
+const AI_PROVIDER_DEFAULT_ORDER = ["cloudflare","openrouter","huggingface"];
+
+function getCookie(request,name){
+  const cookies=request.headers.get("Cookie")||"";
+  const match=cookies.split(";").map(v=>v.trim()).find(v=>v.startsWith(name+"="));
+  return match?decodeURIComponent(match.slice(name.length+1)):null;
+}
+function validConversationId(value){return typeof value==="string"&&/^[a-f0-9]{64}$/.test(value);}
+function newConversationId(){
+  const bytes=new Uint8Array(32); crypto.getRandomValues(bytes);
+  return [...bytes].map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+function conversationCookie(id,maxAge=604800){
+  return AI_CONVERSATION_COOKIE+"="+encodeURIComponent(id)+"; Max-Age="+maxAge+"; Path=/api/ai; Secure; HttpOnly; SameSite=Lax";
+}
+function aiDb(env){if(!env.AI_DB)throw new Error("AI_HISTORY_DB_NOT_CONFIGURED");return env.AI_DB;}
+
+async function getConversation(env,id,customerId){
+  const db=aiDb(env);
+  let sql="SELECT conversation_id,customer_id,created_at,updated_at FROM ai_conversations WHERE conversation_id=?";
+  const args=[id];
+  if(customerId){sql+=" AND (customer_id=? OR customer_id IS NULL)";args.push(customerId);}
+  else sql+=" AND customer_id IS NULL";
+  return db.prepare(sql).bind(...args).first();
+}
+async function ensureConversation(env,request,auth){
+  const existing=getCookie(request,AI_CONVERSATION_COOKIE);
+  if(validConversationId(existing)){
+    const row=await getConversation(env,existing,auth?.user?.id||null);
+    if(row){
+      if(auth?.user?.id&&row.customer_id===null){
+        await aiDb(env).prepare("UPDATE ai_conversations SET customer_id=?,updated_at=? WHERE conversation_id=? AND customer_id IS NULL").bind(auth.user.id,Date.now(),existing).run();
+      }
+      return{conversationId:existing,setCookie:null};
+    }
+  }
+  const id=newConversationId(),now=Date.now();
+  await aiDb(env).prepare("INSERT INTO ai_conversations(conversation_id,customer_id,created_at,updated_at) VALUES(?,?,?,?)").bind(id,auth?.user?.id||null,now,now).run();
+  return{conversationId:id,setCookie:conversationCookie(id)};
+}
+async function loadAiHistory(env,conversationId,customerId){
+  const row=await getConversation(env,conversationId,customerId);
+  if(!row)return null;
+  const result=await aiDb(env).prepare("SELECT role,content,created_at FROM ai_messages WHERE conversation_id=? ORDER BY id DESC LIMIT ?").bind(conversationId,AI_MAX_HISTORY).all();
+  return{conversation:row,messages:(result.results||[]).reverse().map(m=>({role:m.role,content:m.content,created_at:m.created_at}))};
+}
+async function storeAiMessage(env,conversationId,role,content){
+  const db=aiDb(env),now=Date.now();
+  await db.batch([
+    db.prepare("INSERT INTO ai_messages(conversation_id,role,content,created_at) VALUES(?,?,?,?)").bind(conversationId,role,String(content).slice(0,AI_MAX_MESSAGE_CHARS)),
+    db.prepare("UPDATE ai_conversations SET updated_at=? WHERE conversation_id=?").bind(now,conversationId)
+  ]);
+  await db.prepare("DELETE FROM ai_messages WHERE conversation_id=? AND id NOT IN (SELECT id FROM ai_messages WHERE conversation_id=? ORDER BY id DESC LIMIT ?)").bind(conversationId,conversationId,AI_MAX_STORED_MESSAGES).run();
+}
+async function clearAiConversation(env,request,auth){
+  const id=getCookie(request,AI_CONVERSATION_COOKIE),db=aiDb(env);
+  if(validConversationId(id)){
+    const row=await getConversation(env,id,auth?.user?.id||null);
+    if(row){
+      await db.prepare("DELETE FROM ai_messages WHERE conversation_id=?").bind(id).run();
+      await db.prepare("DELETE FROM ai_conversations WHERE conversation_id=?").bind(id).run();
+    }
+  }
+  return json({cleared:true},200,{"Set-Cookie":conversationCookie("",0)});
+}
+async function cleanupAiHistory(env){
+  const cutoff=Date.now()-AI_HISTORY_RETENTION_MS,db=aiDb(env);
+  await db.prepare("DELETE FROM ai_messages WHERE conversation_id IN (SELECT conversation_id FROM ai_conversations WHERE updated_at<?)").bind(cutoff).run();
+  await db.prepare("DELETE FROM ai_conversations WHERE updated_at<?").bind(cutoff).run();
+}
+
+function providerOrder(env){
+  const configured=String(env.AI_PROVIDER_ORDER||"").split(",").map(v=>v.trim().toLowerCase()).filter(Boolean);
+  return [...new Set(configured.length?configured:AI_PROVIDER_DEFAULT_ORDER)].filter(v=>AI_PROVIDER_DEFAULT_ORDER.includes(v));
+}
+function providerModel(env,provider){
+  if(provider==="cloudflare")return String(env.AI_CLOUDFLARE_MODEL||AI_DEFAULT_MODEL).trim();
+  if(provider==="openrouter")return String(env.AI_OPENROUTER_MODEL||"").trim();
+  if(provider==="huggingface")return String(env.AI_HUGGINGFACE_MODEL||"").trim();
+  return "";
+}
+function providerEnabled(env,provider){
+  if(provider==="cloudflare")return Boolean(env.AI?.run&&providerModel(env,provider));
+  if(provider==="openrouter")return Boolean(env.OPENROUTER_API_KEY&&providerModel(env,provider));
+  if(provider==="huggingface")return Boolean(env.HUGGINGFACE_API_KEY&&providerModel(env,provider));
+  return false;
+}
+function openAiCompatibleTools(){return AI_TOOLS.map(tool=>({type:"function",function:tool}));}
+function normalizeProviderResponse(provider,response){
+  const choice=response?.choices?.[0],message=choice?.message||null;
+  const toolCalls=Array.isArray(response?.tool_calls)?response.tool_calls:(Array.isArray(message?.tool_calls)?message.tool_calls:[]);
+  return{message,text:String(message?.content||response?.response||"").trim(),toolCalls};
+}
+async function callOpenAiCompatible(env,provider,payload){
+  const endpoint=provider==="openrouter"?"https://openrouter.ai/api/v1/chat/completions":"https://router.huggingface.co/v1/chat/completions";
+  const key=provider==="openrouter"?env.OPENROUTER_API_KEY:env.HUGGINGFACE_API_KEY;
+  const headers={"Content-Type":"application/json",Authorization:"Bearer "+key};
+  if(provider==="openrouter"){headers["HTTP-Referer"]="https://original-beulah-foods.blinkzdlf.workers.dev";headers["X-Title"]="Beulah Foods AI";}
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),25000);
+  try{
+    const response=await fetch(endpoint,{method:"POST",headers,body:JSON.stringify(payload),signal:controller.signal});
+    const raw=await response.text(); let data=null; try{data=raw?JSON.parse(raw):null;}catch{}
+    if(!response.ok)throw new Error("PROVIDER_HTTP_"+response.status);
+    return data;
+  }finally{clearTimeout(timer);}
+}
+async function runAiProvider(env,provider,messages){
+  const model=providerModel(env,provider);
+  const payload={messages,tools:provider==="cloudflare"?AI_TOOLS:openAiCompatibleTools(),tool_choice:"auto",temperature:0.2,max_tokens:900};
+  const response=provider==="cloudflare"?await env.AI.run(model,payload):await callOpenAiCompatible(env,provider,{model,...payload});
+  return normalizeProviderResponse(provider,response);
+}
+async function runAiWithFallback(env,messages){
+  let lastError=null;
+  for(const provider of providerOrder(env)){
+    if(!providerEnabled(env,provider))continue;
+    try{
+      const result=await runAiProvider(env,provider,messages);
+      if(!result||(!result.text&&!result.toolCalls.length))throw new Error("AI_EMPTY_PROVIDER_RESPONSE");
+      return{...result,provider,model:providerModel(env,provider)};
+    }catch(error){lastError=error;console.error("AI provider failed",provider,error);}
+  }
+  throw lastError||new Error("AI_NOT_CONFIGURED");
+}
+function normalizeToolCalls(result){
+  return(result?.toolCalls||[]).slice(0,AI_MAX_TOOL_CALLS_PER_ROUND).map(call=>{
+    const name=String(call?.name||call?.function?.name||"").trim();
+    let args=call?.arguments??call?.function?.arguments??{};
+    if(typeof args==="string"){try{args=JSON.parse(args);}catch{args={};}}
+    return{id:String(call?.id||("call_"+crypto.randomUUID())),name,args,raw:call};
+  }).filter(call=>call.name);
+}
+function assistantToolMessage(result,toolCalls){
+  return{role:"assistant",content:result.message?.content||null,tool_calls:toolCalls.map(c=>c.raw)};
+}
+function normalizeAiHistory(history){
+  if(!Array.isArray(history))return[];
   return history.slice(-AI_MAX_HISTORY).map(message=>{
     const role=message?.role==="assistant"?"assistant":"user";
     const content=String(message?.content||"").slice(0,AI_MAX_MESSAGE_CHARS);
     return content?{role,content}:null;
   }).filter(Boolean);
 }
-
-function extractAiText(response) {
+function extractAiText(response){
   const choice=response?.choices?.[0];
   return String(choice?.message?.content||response?.response||"").trim();
 }
-
-async function runAiChat(request,env) {
-  let body;
-  try { body=await request.json(); } catch { return json({error:"INVALID_JSON"},400); }
-  const message=String(body?.message||"").trim();
-  if(!message) return json({error:"MESSAGE_REQUIRED"},400);
-  if(message.length>AI_MAX_MESSAGE_CHARS) return json({error:"MESSAGE_TOO_LONG"},413);
-
+async function getAiHistoryRoute(request,env){
   const auth=await authenticateCustomer(request,env);
-  const cart=sanitizeCart(body?.cart);
-  const history=normalizeAiHistory(body?.history);
+  const id=getCookie(request,AI_CONVERSATION_COOKIE);
+  if(!validConversationId(id))return json({conversation_id:null,messages:[]});
+  const history=await loadAiHistory(env,id,auth?.user?.id||null);
+  if(!history)return json({conversation_id:null,messages:[]});
+  return json({conversation_id:id,messages:history.messages.map(m=>({role:m.role,content:m.content}))});
+}
+async function runAiChat(request,env){
+  let body;try{body=await request.json();}catch{return json({error:"INVALID_JSON"},400);}
+  const message=String(body?.message||"").trim();
+  if(!message)return json({error:"MESSAGE_REQUIRED"},400);
+  if(message.length>AI_MAX_MESSAGE_CHARS)return json({error:"MESSAGE_TOO_LONG"},413);
+  const auth=await authenticateCustomer(request,env),cart=sanitizeCart(body?.cart);
+  const conversation=await ensureConversation(env,request,auth);
+  const history=await loadAiHistory(env,conversation.conversationId,auth?.user?.id||null);
+  const priorMessages=history?.messages?.slice(-AI_MAX_HISTORY).map(m=>({role:m.role,content:m.content}))||[];
+  await storeAiMessage(env,conversation.conversationId,"user",message);
   const messages=[
     {role:"system",content:AI_SYSTEM_PROMPT},
     {role:"system",content:JSON.stringify({signed_in:Boolean(auth),current_cart_items:cart.length})},
-    ...history,
-    {role:"user",content:message}
+    ...priorMessages,{role:"user",content:message}
   ];
-  if(!env.AI?.run) return json({error:"AI_NOT_CONFIGURED"},503);
-
-  const actions=[];
-  let response;
-  let rounds=0;
-  while(rounds<AI_MAX_TOOL_ROUNDS) {
-    rounds+=1;
-    response=await env.AI.run(AI_MODEL,{
-      messages,
-      tools:AI_TOOLS,
-      tool_choice:"auto",
-      temperature:0.2,
-      max_tokens:900,
-      user:auth?.user?.id||"anonymous"
-    });
-    const toolCalls=Array.isArray(response?.tool_calls)?response.tool_calls:[];
-    if(!toolCalls.length) break;
-
-    messages.push({role:"assistant",content:JSON.stringify(toolCalls)});
-    for(const toolCall of toolCalls.slice(0,4)) {
-      const toolName=String(toolCall?.name||"").trim();
-      let args=toolCall?.arguments||{};
-      if(typeof args==="string") {
-        try { args=JSON.parse(args); } catch { args={}; }
-      }
-      let result;
-      try {
-        result=await executeAiTool(env,auth,toolName,args,{cart});
-      } catch(error) {
-        result=aiError(error?.message||"The requested operation could not be completed.",String(error?.message||"AI_TOOL_ERROR").split(":")[0]);
-      }
-      if(result?.action) actions.push(result.action);
-      messages.push({role:"tool",content:JSON.stringify(result)});
+  const actions=[];let result=null;
+  for(let round=0;round<AI_MAX_TOOL_ROUNDS;round++){
+    result=await runAiWithFallback(env,messages);
+    const toolCalls=normalizeToolCalls(result);
+    if(!toolCalls.length)break;
+    messages.push(assistantToolMessage(result,toolCalls));
+    for(const toolCall of toolCalls){
+      let toolResult;
+      try{toolResult=await executeAiTool(env,auth,toolCall.name,toolCall.args,{cart});}
+      catch(error){toolResult=aiError(error?.message||"The requested operation could not be completed.",String(error?.message||"AI_TOOL_ERROR").split(":")[0]);}
+      if(toolResult?.action)actions.push(toolResult.action);
+      messages.push(result.provider==="cloudflare"
+        ? {role:"tool",content:JSON.stringify(toolResult)}
+        : {role:"tool",tool_call_id:toolCall.id,name:toolCall.name,content:JSON.stringify(toolResult)});
     }
   }
-
-  const text=extractAiText(response);
-  if(!text) return json({error:"AI_EMPTY_RESPONSE"},502);
-  return json({message:text,actions,model:AI_MODEL});
+  const text=result?.text||"";
+  if(!text)throw new Error("AI_EMPTY_RESPONSE");
+  await storeAiMessage(env,conversation.conversationId,"assistant",text);
+  return json({conversation_id:conversation.conversationId,message:text,actions,provider:result.provider,model:result.model},200,conversation.setCookie?{"Set-Cookie":conversation.setCookie}:{});
 }
-
 const STOREFRONT_PAGES = new Set([
   "login",
   "signup",
