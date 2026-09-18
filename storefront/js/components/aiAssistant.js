@@ -220,6 +220,8 @@ export function initAiAssistant() {
   const send = root.querySelector(".beulah-ai__send");
 
   toggle.addEventListener("click", () => {
+    root.classList.add("is-open");
+    toggle.classList.add("is-hidden");
     panel.hidden = false;
     toggle.setAttribute("aria-expanded", "true");
     if (!messages.length && historyLoaded) addMessage("assistant", "I can help with products, current stock, your orders, your cart, and checkout.");
@@ -230,6 +232,8 @@ export function initAiAssistant() {
 
   close.addEventListener("click", () => {
     panel.hidden = true;
+    root.classList.remove("is-open");
+    toggle.classList.remove("is-hidden");
     toggle.setAttribute("aria-expanded", "false");
   });
   form.addEventListener("submit", event => {
