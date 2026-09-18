@@ -1,6 +1,6 @@
 # Next Feature Plan — Beulah Foods
 
-Status: Groups A–C implemented in TEST. Groups D–F remain planned.
+Status: Groups A–F implemented in TEST. Behavioral acceptance and release-gate verification remain pending.
 
 Repository: `blinkzdlfx-cell/original-beulah-foods`
 
