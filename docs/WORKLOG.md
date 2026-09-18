@@ -265,3 +265,14 @@ No implementation was performed for Groups A–C by this documentation update. P
 ### Phase F — documentation/context
 - Recorded this D–F implementation in this worklog.
 - Kept the release gate and external Paystack configuration explicitly pending; no production resources were changed.
+
+## 2026-09-18 — Pending-item audit and release-gate status
+
+- Rechecked the clean TEST Supabase migration ledger: 20 migrations are applied in the database.
+- The repository contains source for the later migration work, but the earliest core migration sources and some intermediate security migrations are not present under the same filenames as the applied ledger. These were not fabricated or guessed.
+- The current database schema was inspected directly as the authoritative runtime state. Exact historical SQL source remains the only migration-mirror gap; a fabricated replacement would violate the source-of-truth requirement.
+- Confirmed the previously reported Admin How To card expansion fix remains in admin/css/how-to.css: the two editors use independent content-height sizing and the action buttons remain content-sized.
+- Verified the public TEST Worker: storefront root responds successfully; payment initialize/webhook reject incorrect GET requests with 405 and verify rejects unauthenticated access with 401, confirming the routes are deployed and protected at the public boundary.
+- Confirmed the two admin accounts are already provisioned in the clean TEST project; remaining admin work is acceptance testing rather than provisioning.
+- Remaining release-gate actions requiring owner/external-dashboard access: configure the Paystack TEST webhook URL, configure the Cloudflare Worker PAYSTACK_SECRET_KEY and SUPABASE_SECRET_KEY, then execute the real Paystack TEST transaction and full callback/webhook/idempotency acceptance suite.
+- Production resources remain untouched.
