@@ -715,6 +715,16 @@ async function getFooterSupport(env) {
 }
 
 
+function providerOrder(env) {
+  const configured = String(env.AI_PROVIDER_ORDER || "")
+    .split(",")
+    .map(value => value.trim().toLowerCase())
+    .filter(Boolean);
+
+  return [...new Set(configured.length ? configured : AI_PROVIDER_DEFAULT_ORDER)]
+    .filter(provider => AI_PROVIDER_DEFAULT_ORDER.includes(provider));
+}
+
 function providerModel(env, provider) {
   if (provider === "cloudflare") return String(env.AI_CLOUDFLARE_MODEL || AI_DEFAULT_MODEL).trim();
   if (provider === "openrouter") return String(env.AI_OPENROUTER_MODEL || "").trim();
