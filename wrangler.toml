@@ -4,6 +4,11 @@ compatibility_date = "2026-09-16"
 
 [vars]
 SUPABASE_URL = "https://wzrqlquspbipvrzidcxe.supabase.co"
+AI_PROVIDER_ORDER = "cloudflare,openrouter,huggingface"
+AI_CLOUDFLARE_MODEL = "@cf/zai-org/glm-4.7-flash"
+# Set these when the provider is enabled. The provider is skipped when its key or model is absent.
+AI_OPENROUTER_MODEL = ""
+AI_HUGGINGFACE_MODEL = ""
 
 [secrets]
 required = ["PAYSTACK_SECRET_KEY", "SUPABASE_SECRET_KEY"]
@@ -20,3 +25,12 @@ enabled = true
 
 [ai]
 binding = "AI"
+
+# TEST-only D1 binding. Create the database first, then add its real ID here.
+# [[d1_databases]]
+# binding = "AI_DB"
+# database_name = "original-beulah-ai"
+# database_id = "REPLACE_WITH_TEST_D1_DATABASE_ID"
+
+[triggers]
+crons = ["0 2 * * *"]
