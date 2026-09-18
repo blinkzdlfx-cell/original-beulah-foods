@@ -715,6 +715,235 @@ async function getFooterSupport(env) {
 }
 
 
+function providerModel(env, provider) {
+  if (provider === "cloudflare") return String(env.AI_CLOUDFLARE_MODEL || AI_DEFAULT_MODEL).trim();
+  if (provider === "openrouter") return String(env.AI_OPENROUTER_MODEL || "").trim();
+  if (provider === "huggingface") return String(env.AI_HUGGINGFACE_MODEL || "").trim();
+  return "";
+}
+
+function providerEnabled(env, provider) {
+  if (provider === "cloudflare") return Boolean(env.AI && typeof env.AI.run === "function" && providerModel(env, provider));
+  if (provider === "openrouter") return Boolean(env.OPENROUTER_API_KEY && providerModel(env, provider));
+  if (provider === "huggingface") return Boolean(env.HUGGINGFACE_API_KEY && providerModel(env, provider));
+  return false;
+}
+
+function openAiCompatibleTools() {
+  return AI_TOOLS.map(tool => ({
+    type: "function",
+    function: tool,
+  }));
+}
+
+function cloudflareTools() {
+  return AI_TOOLS.map(tool => ({
+    type: "function",
+    function: {
+      name: tool.name,
+      description: tool.description,
+      parameters: sanitizeCloudflareSchema(tool.parameters),
+    },
+  }));
+}
+
+function sanitizeCloudflareSchema(schema) {
+  if (!schema || typeof schema !== "object") return schema;
+  const output = { type: schema.type || "object" };
+
+  if (schema.description) output.description = schema.description;
+  if (Array.isArray(schema.required) && schema.required.length) {
+    output.required = schema.required;
+  }
+
+  if (schema.properties && typeof schema.properties === "object") {
+    output.properties = {};
+    for (const [name, property] of Object.entries(schema.properties)) {
+      const clean = {};
+      if (property?.type) clean.type = property.type;
+      if (property?.description) clean.description = property.description;
+      if (Array.isArray(property?.enum)) clean.enum = property.enum;
+      output.properties[name] = clean;
+    }
+  }
+
+  return output;
+}
+
+function normalizeProviderResponse(provider, response) {
+  const choice = response?.choices?.[0];
+
+  if (provider === "cloudflare") {
+    const message = choice?.message || null;
+    return {
+      message,
+      text: String(message?.content || response?.response || "").trim(),
+      toolCalls: Array.isArray(message?.tool_calls)
+        ? message.tool_calls
+        : (Array.isArray(response?.tool_calls) ? response.tool_calls : []),
+    };
+  }
+
+
+  const message = choice?.message || null;
+
+  return {
+    message,
+    text: String(message?.content || "").trim(),
+    toolCalls: Array.isArray(message?.tool_calls) ? message.tool_calls : [],
+  };
+}
+
+async function callOpenAiCompatible(env, provider, payload) {
+  const endpoint = provider === "openrouter"
+    ? "https://openrouter.ai/api/v1/chat/completions"
+    : "https://router.huggingface.co/v1/chat/completions";
+
+  const key = provider === "openrouter"
+    ? env.OPENROUTER_API_KEY
+    : env.HUGGINGFACE_API_KEY;
+
+  const headers = {
+    "Content-Type": "application/json",
+    Authorization: "Bearer " + key,
+  };
+  if (provider === "openrouter") {
+    headers["HTTP-Referer"] = "https://original-beulah-foods.blinkzdlfx.workers.dev";
+    headers["X-Title"] = "Beulah Foods AI";
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 25000);
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+
+    const raw = await response.text();
+    let data = null;
+
+    try {
+      data = raw ? JSON.parse(raw) : null;
+    } catch {
+      data = null;
+    }
+
+    if (!response.ok) {
+      throw new Error("PROVIDER_HTTP_" + response.status);
+    }
+
+    return data;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function runAiProvider(env, provider, messages, { useTools = true, tools = null } = {}) {
+  const model = providerModel(env, provider);
+
+  if (provider === "cloudflare") {
+    const payload = {
+      messages,
+      temperature: 0.2,
+      max_tokens: 900,
+    };
+
+    if (useTools) {
+      payload.tools = Array.isArray(tools) ? tools : cloudflareTools();
+      payload.tool_choice = "auto";
+    }
+    const response = await env.AI.run(model, payload);
+    return normalizeProviderResponse(provider, response);
+  }
+
+  const payload = {
+    model,
+    messages,
+    temperature: 0.2,
+    max_tokens: 900,
+  };
+
+  if (useTools) {
+    const selectedTools = Array.isArray(tools) ? tools : AI_TOOLS;
+    payload.tools = selectedTools === AI_TOOLS ? openAiCompatibleTools() : selectedTools.map(tool => ({
+      type: "function",
+      function: tool,
+    }));
+    payload.tool_choice = "auto";
+  }
+
+  const response = await callOpenAiCompatible(env, provider, payload);
+  return normalizeProviderResponse(provider, response);
+}
+
+async function runAiWithFallback(env, messages) {
+  let lastError = null;
+
+  for (const provider of providerOrder(env)) {
+    if (!providerEnabled(env, provider)) continue;
+
+    try {
+      const result = await runAiProvider(env, provider, messages, { useTools: true });
+
+      if (result?.text || result?.toolCalls?.length) {
+        return {
+          ...result,
+          provider,
+          model: providerModel(env, provider),
+        };
+      }
+
+      throw new Error("AI_EMPTY_PROVIDER_RESPONSE");
+    } catch (error) {
+      console.error("AI provider with tools failed", provider, error);
+      lastError = error;
+
+      // A plain customer message must still work if a provider rejects its
+      // tool schema. Retry the same provider without tools before falling
+      // through to another configured provider.
+      try {
+        const result = await runAiProvider(env, provider, messages, { useTools: false });
+
+        if (result?.text) {
+          return {
+            ...result,
+            provider,
+            model: providerModel(env, provider),
+          };
+        }
+
+        throw new Error("AI_EMPTY_PROVIDER_RESPONSE");
+      } catch (retryError) {
+        console.error("AI provider without tools failed", provider, retryError);
+        lastError = retryError;
+      }
+    }
+  }
+
+  throw lastError || new Error("AI_NOT_CONFIGURED");
+}
+
+function normalizeToolCalls(result){
+  return(result?.toolCalls||[]).slice(0,AI_MAX_TOOL_CALLS_PER_ROUND).map(call=>{
+    const name=String(call?.name||call?.function?.name||"").trim();
+    let args=call?.arguments??call?.function?.arguments??{};
+    if(typeof args==="string"){try{args=JSON.parse(args);}catch{args={};}}
+    return{id:String(call?.id||("call_"+crypto.randomUUID())),name,args,raw:call};
+  }).filter(call=>call.name);
+}
+function assistantToolMessage(result, toolCalls) {
+  return {
+    role: "assistant",
+    content: result.message?.content || null,
+    tool_calls: toolCalls.map(call => call.raw),
+  };
+}
+
+
 async function cleanupAiHistory(env){
   const db=aiDb(env);
   const now=Date.now();
