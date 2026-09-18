@@ -29,7 +29,7 @@
 - [x] Verify RLS and privileged function grants.
 - [x] Make payment-attempt creation idempotent for repeated initialization requests.
 - [x] Preserve Paystack pending/ongoing/processing statuses instead of converting them prematurely to failed.
-- [ ] Mirror the complete clean database migration history into the repository so GitHub can reproduce the current Supabase schema from scratch.
+- [~] Migration ledger audited; exact historical SQL for the earliest/intermediate applied migrations is not present in the repository and was not fabricated. Current live schema remains authoritative until those exact source files are recovered.
 
 ## Phase 3 — Cloudflare payment boundary
 
@@ -54,7 +54,7 @@
 - [ ] Configure the Paystack dashboard webhook URL to `https://<storefront-origin>/api/paystack/webhook`.
 - [ ] Configure `PAYSTACK_SECRET_KEY` in the deployed Cloudflare Worker using the Paystack TEST key.
 - [ ] Configure `SUPABASE_SECRET_KEY` in the deployed Cloudflare Worker using the new Supabase secret key.
-- [ ] Verify deployed Worker routes from the public storefront origin.
+- [x] Verify deployed Worker routes from the public storefront origin.
 - [ ] Verify every external URL and secret location before live money movement.
 
 ## Phase 5 — admin foundation
@@ -65,7 +65,7 @@
 - [x] Promo-code management.
 - [x] Admin orders page connected to Supabase.
 - [x] Admin transactions page connected to Supabase.
-- [ ] Provision and verify a real admin account.
+- [x] Provision and verify a real admin account.
 - [ ] Run admin read/write acceptance tests.
 
 ## Phase 6 — acceptance testing
