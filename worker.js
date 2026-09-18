@@ -655,15 +655,18 @@ async function ensureConversation(env,request,auth){
 async function loadAiHistory(env,conversationId,customerId){
   const row=await getConversation(env,conversationId,customerId);
   if(!row)return null;
-  const result=await aiDb(env).prepare("SELECT role,content,created_at FROM ai_messages WHERE conversation_id=? ORDER BY id DESC LIMIT ?").bind(conversationId,AI_MAX_HISTORY).all();
+  const result=await aiDb(env).prepare(`SELECT role,content,created_at FROM ai_messages WHERE conversation_id=? ORDER BY id DESC LIMIT ${AI_MAX_HISTORY}`).bind(conversationId).all();
   return{conversation:row,messages:(result.results||[]).reverse().map(m=>({role:m.role,content:m.content,created_at:m.created_at}))};
 }
 async function storeAiMessage(env,conversationId,role,content){
   const db=aiDb(env),now=Date.now();
-  await db.batch([
-    db.prepare("INSERT INTO ai_messages(conversation_id,role,content,created_at) VALUES(?,?,?,?)").bind(conversationId,role,String(content).slice(0,AI_MAX_MESSAGE_CHARS)),
-    db.prepare("UPDATE ai_conversations SET updated_at=? WHERE conversation_id=?").bind(now,conversationId)
-  ]);
+  await db.prepare("INSERT INTO ai_messages(conversation_id,role,content,created_at) VALUES(?,?,?,?)").bind(
+    conversationId,
+    role,
+    String(content).slice(0,AI_MAX_MESSAGE_CHARS),
+    now,
+  ).run();
+  await db.prepare("UPDATE ai_conversations SET updated_at=? WHERE conversation_id=?").bind(now,conversationId).run();
   await db.prepare(`DELETE FROM ai_messages WHERE conversation_id=? AND id NOT IN (SELECT id FROM ai_messages WHERE conversation_id=? ORDER BY id DESC LIMIT ${AI_MAX_STORED_MESSAGES})`).bind(conversationId,conversationId).run();
 }
 async function runAiDiagnostic(request, env) {
@@ -842,7 +845,21 @@ async function runAiDiagnostic(request, env) {
           }],
           temperature: 0.2,
           max_tokens: 300,
-          tools: minimalTool,
+          tools: [{
+            type: "function",
+            function: {
+              name: "diagnostic_ping",
+              description: "Return a diagnostic acknowledgement.",
+              parameters: {
+                type: "object",
+                properties: {
+                  value: { type: "string", description: "A short diagnostic value." },
+                },
+                required: ["value"],
+              },
+            },
+          }],
+          tool_choice: "required",
         },
       );
     } catch (error) {
@@ -878,7 +895,7 @@ async function runAiDiagnostic(request, env) {
           }],
           temperature: 0.2,
           max_tokens: 300,
-          tools: AI_TOOLS,
+          tools: cloudflareTools(),
         },
       );
     } catch (error) {
@@ -972,16 +989,55 @@ function openAiCompatibleTools() {
   }));
 }
 
+function cloudflareTools() {
+  return AI_TOOLS.map(tool => ({
+    type: "function",
+    function: {
+      name: tool.name,
+      description: tool.description,
+      parameters: sanitizeCloudflareSchema(tool.parameters),
+    },
+  }));
+}
+
+function sanitizeCloudflareSchema(schema) {
+  if (!schema || typeof schema !== "object") return schema;
+  const output = { type: schema.type || "object" };
+
+  if (schema.description) output.description = schema.description;
+  if (Array.isArray(schema.required) && schema.required.length) {
+    output.required = schema.required;
+  }
+
+  if (schema.properties && typeof schema.properties === "object") {
+    output.properties = {};
+    for (const [name, property] of Object.entries(schema.properties)) {
+      const clean = {};
+      if (property?.type) clean.type = property.type;
+      if (property?.description) clean.description = property.description;
+      if (Array.isArray(property?.enum)) clean.enum = property.enum;
+      output.properties[name] = clean;
+    }
+  }
+
+  return output;
+}
+
 function normalizeProviderResponse(provider, response) {
+  const choice = response?.choices?.[0];
+
   if (provider === "cloudflare") {
+    const message = choice?.message || null;
     return {
-      message: null,
-      text: String(response?.response || "").trim(),
-      toolCalls: Array.isArray(response?.tool_calls) ? response.tool_calls : [],
+      message,
+      text: String(message?.content || response?.response || "").trim(),
+      toolCalls: Array.isArray(message?.tool_calls)
+        ? message.tool_calls
+        : (Array.isArray(response?.tool_calls) ? response.tool_calls : []),
     };
   }
 
-  const choice = response?.choices?.[0];
+
   const message = choice?.message || null;
 
   return {
@@ -1049,8 +1105,7 @@ async function runAiProvider(env, provider, messages, { useTools = true, tools =
       max_tokens: 900,
     };
 
-    if (useTools) payload.tools = Array.isArray(tools) ? tools : AI_TOOLS;
-
+    if (useTools) payload.tools = Array.isArray(tools) ? tools : cloudflareTools();
     const response = await env.AI.run(model, payload);
     return normalizeProviderResponse(provider, response);
   }
@@ -1131,18 +1186,6 @@ function normalizeToolCalls(result){
   }).filter(call=>call.name);
 }
 function assistantToolMessage(result, toolCalls) {
-  const toolCall = toolCalls[0];
-
-  if (result.provider === "cloudflare") {
-    return {
-      role: "assistant",
-      content: JSON.stringify({
-        name: toolCall.name,
-        arguments: toolCall.args,
-      }),
-    };
-  }
-
   return {
     role: "assistant",
     content: result.message?.content || null,
