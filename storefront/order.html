@@ -28,5 +28,7 @@
     <section class="card order-detail-card"><div id="order-status" class="alert" role="status" hidden></div><div id="order-items" class="stack"></div><div id="order-total" class="order-detail-total"></div></section>
   </main>
   <script type="module" src="js/pages/order.js"></script>
+<footer class="site-footer"><div class="footer__inner"><div><div class="footer__brand">Beulah Foods</div><p class="footer__copy">Eat Healthy, Live Healthy.</p><p class="footer__copy">Lagos, Nigeria</p></div><div class="footer__links"><div><strong>Navigate</strong><a href="shop.html">Shop</a><a href="how-to.html">How To</a><a href="account.html">My Account</a><a href="orders.html">My Orders</a></div><div><strong>Legal</strong><a href="privacy-policy.html">Privacy Policy</a><a href="terms-of-service.html">Terms of Service</a></div><div><strong>Contact</strong><a href="mailto:hello@beulahfoods.com">hello@beulahfoods.com</a></div></div><p class="footer__copy footer__copyright">© <span id="footer-year"></span> Beulah Foods</p></div></footer>
+  <script>document.getElementById("footer-year")?.replaceChildren(String(new Date().getFullYear()));</script>
 </body>
 </html>
