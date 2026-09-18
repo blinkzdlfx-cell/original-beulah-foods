@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en-NG">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" type="image/svg+xml" href="/admin/assets/favicon.svg" />
+  <title>AI Knowledge — Beulah Foods Admin</title>
+  <link rel="stylesheet" href="css/variables.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+  <link rel="stylesheet" href="css/admin-refinement.css" />
+</head>
+<body>
+<div class="admin-shell admin-shell--loading">
+  <section id="admin-login" class="admin-main hidden">
+    <div class="admin-card login-card"><p class="muted">Beulah Foods administration</p><h1>Admin sign in</h1><p class="muted">Use an authorized admin account.</p></div>
+  </section>
+  <section id="admin-app" class="hidden">
+    <header class="admin-header"><div class="admin-header__inner">
+      <a class="admin-brand admin-brand--link" href="/admin/"><img src="assets/beulah-admin-logo.svg" alt="Beulah Foods Administration" /></a>
+      <nav class="admin-page-nav" aria-label="Admin navigation">
+        <a href="/admin/">Dashboard</a><a href="/admin/orders.html">Orders</a><a href="/admin/transactions.html">Transactions</a><a href="/admin/how-to.html">How To</a><a class="is-active" href="/admin/knowledge.html">AI Knowledge</a><a href="/admin/announcements.html">Announcements</a>
+      </nav>
+    </div></header>
+    <main class="admin-main">
+      <div id="knowledge-status" class="alert" role="status" aria-live="polite" hidden></div>
+      <div class="admin-grid">
+        <section class="admin-card">
+          <div class="section-heading"><div><p class="muted">AI grounding</p><h1>Knowledge base</h1><p class="muted">Add facts, FAQs, cooking instructions, ordering information, delivery rules, and other approved Beulah Foods knowledge. The customer assistant can search active entries.</p></div></div>
+          <form id="knowledge-form" class="stack">
+            <input id="knowledge-id" type="hidden" />
+            <div class="field"><label for="knowledge-title">Title</label><input id="knowledge-title" maxlength="180" required placeholder="How to cook Beulah Plantain Flour" /></div>
+            <div class="field"><label for="knowledge-category">Category</label><select id="knowledge-category"><option value="general">General</option><option value="how_to">How To</option><option value="cooking">Cooking</option><option value="ordering">Ordering</option><option value="product">Product</option><option value="delivery">Delivery</option><option value="faq">FAQ</option><option value="policy">Policy</option></select></div>
+            <div class="field"><label for="knowledge-tags">Tags</label><input id="knowledge-tags" maxlength="500" placeholder="plantain flour, cooking, breakfast" /><small class="muted">Comma-separated search terms.</small></div>
+            <div class="field"><label for="knowledge-content">Knowledge</label><textarea id="knowledge-content" rows="12" maxlength="12000" required placeholder="Write the approved information the assistant should use..."></textarea></div>
+            <label class="field checkbox-field"><input id="knowledge-active" type="checkbox" checked /> Active and searchable</label>
+            <div class="actions"><button id="knowledge-save" class="btn btn-primary" type="submit">Save knowledge</button><button id="knowledge-clear" class="btn btn-secondary" type="button">Clear</button></div>
+          </form>
+        </section>
+        <section class="admin-card">
+          <div class="section-heading"><div><h2>Knowledge entries</h2><p class="muted">Only active entries are available to the customer AI.</p></div></div>
+          <div class="table-wrap"><table class="table"><thead><tr><th>Title</th><th>Category</th><th>Status</th><th>Updated</th><th></th></tr></thead><tbody id="knowledge-rows"></tbody></table></div>
+        </section>
+      </div>
+    </main>
+  </section>
+</div>
+<script type="module" src="js/knowledge.js?v=20260918-1"></script>
+</body>
+</html>
