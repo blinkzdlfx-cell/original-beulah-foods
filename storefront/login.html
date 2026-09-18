@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="css/password-toggle.css" />
   <link rel="stylesheet" href="css/toast.css" />
 </head>
-<body>
+<body><section class="announcement-region" data-announcements hidden aria-label="Announcements"></section>
   <header class="site-header">
     <div class="site-header__inner">
       <a class="site-header__logo-wrap" href="index.html" aria-label="Beulah Foods home">
@@ -53,5 +53,5 @@
 
   <script type="module" src="js/pages/login.js"></script>
   <script type="module" src="js/components/passwordToggle.js"></script>
-</body>
+<script type="module">import { renderAnnouncements } from "./js/components/announcements.js"; renderAnnouncements("login");</script></body>
 </html>
