@@ -34,3 +34,21 @@ database_id = "2ab4c58d-40e3-43e0-a1b1-019e1f0e473a"
 
 [triggers]
 crons = ["0 2 * * *"]
+
+
+# TEST/production-safe AI request protection.
+[[ratelimits]]
+name = "AI_CHAT_RATE_LIMITER"
+namespace_id = "2026091801"
+
+  [ratelimits.simple]
+  limit = 20
+  period = 60
+
+[[ratelimits]]
+name = "AI_MUTATION_RATE_LIMITER"
+namespace_id = "2026091802"
+
+  [ratelimits.simple]
+  limit = 5
+  period = 60
