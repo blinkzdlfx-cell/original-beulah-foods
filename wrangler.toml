@@ -9,8 +9,6 @@ AI_CLOUDFLARE_MODEL = "@cf/zai-org/glm-4.7-flash"
 # Set these when the provider is enabled. The provider is skipped when its key or model is absent.
 AI_OPENROUTER_MODEL = ""
 AI_HUGGINGFACE_MODEL = ""
-# Temporary TEST-only diagnostic endpoint. Remove after debugging.
-AI_DIAGNOSTIC_ENABLED = "true"
 
 [secrets]
 required = ["PAYSTACK_SECRET_KEY", "SUPABASE_SECRET_KEY"]
