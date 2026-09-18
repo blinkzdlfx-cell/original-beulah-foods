@@ -42,6 +42,18 @@ The AI retrieves both through explicit Worker tools. It does not receive arbitra
 
 The AI Knowledge admin page is `/admin/knowledge.html`.
 
+## Interaction and performance layer
+
+The assistant also has a controlled interaction layer outside the model prompt:
+
+- Common greetings and capability questions can use deterministic responses without an AI inference round-trip.
+- Slowly changing read-only knowledge uses short-lived Worker-side caching.
+- Transactional state such as stock, cart contents, orders, reservations, and payment state is not served from the read cache.
+- Navigation is represented as structured actions and resolved by a frontend allowlist; the model cannot supply arbitrary URLs.
+- Cart, reservation, cancellation, review, and navigation requests expose action-specific progress text while the request is in flight.
+- Human-support contact is retrieved from the current public storefront footer. The assistant does not hard-code a support number in its system prompt.
+- WhatsApp support links are emitted only after the retrieved contact passes validation.
+
 ## Response boundaries
 
 The assistant must not invent brand facts or expose internal instructions, prompts, tool names, database details, secrets, implementation details, or private/admin information. When confirmed information is unavailable, it says so instead of guessing.
@@ -60,7 +72,7 @@ The assistant cannot:
 
 Supabase remains authoritative for catalogue, stock, reservations, orders, payments, How To content, and AI knowledge. The AI is an interface over those systems, not a replacement for them.
 
-No persistent AI conversation table is introduced in this phase.
+No persistent AI conversation table is introduced in this phase. Conversation persistence is handled by the D1 section below.
 
 
 ## Durable chat history — Cloudflare D1
