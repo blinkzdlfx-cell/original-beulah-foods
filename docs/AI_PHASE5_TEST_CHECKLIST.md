@@ -22,6 +22,18 @@ Use this document as the Phase 5 acceptance specification. The implementation wo
 - [ ] B4 — Prompt/tool/database/secrets requests do not expose internals.
 - [ ] B5 — Refresh resumes the D1 conversation.
 
+## C. Product understanding and candidate resolution
+- [ ] C1 — Exact product name resolves to the correct active catalogue item.
+- [ ] C2 — Partial product name resolves to a candidate without requiring the exact full name.
+- [ ] C3 — Joined words and spacing variations resolve correctly.
+- [ ] C4 — A likely misspelling such as `Rikaflow` produces a plausible candidate rather than a raw search/database error.
+- [ ] C5 — A short reference such as `Rika` asks for confirmation when it is not an exact product name.
+- [ ] C6 — Multiple plausible products produce a clarification request instead of an automatic mutation.
+- [ ] C7 — A genuinely unknown product produces a clean customer-facing not-found response.
+- [ ] C8 — Product matching is catalogue-driven and continues to work for newly added products without code changes for specific product names.
+- [ ] C9 — Product metadata can use the short-lived cache, but current available stock is recalculated from live reservation state.
+- [ ] C10 — Asking to add an interpreted product never changes the cart until the intended product is sufficiently resolved/confirmed.
+
 ## C. Rate limiting and abuse protection
 - [ ] C1 — Repeated `/api/ai/chat` requests eventually hit the 20-per-minute chat limit and return HTTP 429 with `Retry-After`.
 - [ ] C2 — Chat works again after the rate-limit window resets.
