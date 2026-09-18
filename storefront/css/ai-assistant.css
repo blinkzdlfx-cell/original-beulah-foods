@@ -600,3 +600,60 @@
     right: 66px;
   }
 }
+
+
+.beulah-ai__command-hint {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: calc(100% + 6px);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 22px;
+  padding: 3px 8px;
+  border-radius: 7px;
+  background: rgba(247, 249, 245, .94);
+  color: #71806e;
+  font-size: .62rem;
+  line-height: 1.2;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(3px);
+  transition: opacity .18s ease, transform .18s ease;
+}
+
+.beulah-ai__command-hint.is-active {
+  opacity: 1;
+  transform: none;
+}
+
+.beulah-ai__command-hint-label {
+  color: #315222;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.beulah-ai__command-hint-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(3px);
+  transition: opacity .18s ease, transform .18s ease;
+}
+
+.beulah-ai__command-hint-text.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .beulah-ai__command-hint,
+  .beulah-ai__command-hint-text {
+    transition: none;
+  }
+}
