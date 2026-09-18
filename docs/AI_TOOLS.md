@@ -8,18 +8,24 @@ All tools are allowlisted in the Cloudflare Worker.
 Returns active product categories.
 
 ### search_products
-Arguments: `query`, `category_slug`, optional `limit` (1-8).
-
-Returns active products with current NGN price and available stock after active reservations.
+Searches active products and returns current price and available stock after active reservations.
 
 ### get_product
-Accepts a product UUID or slug. Returns current price and available stock.
+Returns one active product with current price and available stock.
+
+### get_how_to
+Reads the existing customer education database:
+- `order` returns the published How To Order guide.
+- `cooking` returns published product preparation guides, optionally narrowed to a product.
+
+### search_ai_knowledge
+Searches the admin-managed `ai_knowledge` database using PostgreSQL full-text search. Only active entries are returned. This is the controlled knowledge retrieval layer for FAQs, cooking information, ordering rules, delivery information, product facts, policies, and general store knowledge.
 
 ### get_store_policies
-Accepts `privacy` or `terms`. Reads the current storefront document through the Worker asset binding.
+Reads the current Privacy Policy or Terms of Service.
 
 ### get_my_cart
-Reads the browser cart supplied with the request and enriches it with current catalogue data.
+Reads and enriches the customer's current browser cart.
 
 ### get_my_orders
 Authenticated only. Returns recent orders belonging to the authenticated user.
@@ -30,10 +36,10 @@ Authenticated only. Accepts an order ID or order number and applies an explicit 
 ## Action tools
 
 ### add_to_cart
-Validates the active product and available stock, then returns a browser-cart action.
+Validates availability and returns a browser-cart action.
 
 ### update_cart
-Validates the active product and available stock, then returns a browser-cart action.
+Validates availability and returns a browser-cart action.
 
 ### remove_from_cart
 Returns a browser-cart remove action.
@@ -44,6 +50,14 @@ Authenticated only. Uses the current browser cart and stored delivery profile an
 ### cancel_reservation
 Authenticated only. Calls the existing `cancel_pending_order` RPC.
 
+## Knowledge architecture
+
+The How To tables remain the source of truth for customer education already managed through the How To admin page.
+
+The new `ai_knowledge` table is the source of truth for manually curated AI knowledge. Admins can create, edit, activate/deactivate, and delete entries from `/admin/knowledge.html`.
+
+The AI retrieves knowledge through the Worker, not through arbitrary database access. This keeps the model inside an allowlisted tool boundary.
+
 ## Execution rules
 
 - No arbitrary SQL tool.
@@ -51,4 +65,5 @@ Authenticated only. Calls the existing `cancel_pending_order` RPC.
 - Product reads require `is_active = true`.
 - Order reads are scoped to the authenticated user's ID.
 - Customer RPCs use the customer's access token.
+- Knowledge retrieval exposes only active entries.
 - Worker secrets never enter model or browser messages.
