@@ -42,3 +42,11 @@
 No production resource is changed until the existing Beulah Foods TEST release gate passes.
 
 The assistant remains outside Paystack control and outside arbitrary database access.
+
+
+## UX hardening
+
+- Brand-scoped response rules documented and enforced in the Worker system prompt.
+- Floating assistant now has a noticeable discoverability pulse/ring and temporary "Ask Beulah AI" hint.
+- Message submission shows an animated Thinking state until the response arrives.
+- Reduced-motion users receive a non-animated fallback.
