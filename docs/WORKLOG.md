@@ -371,3 +371,20 @@ Production resources remain untouched.
 5. Confirm the existing Cloudflare Workers AI binding is available.
 6. Optionally add OPENROUTER_API_KEY and HUGGINGFACE_API_KEY as Cloudflare Worker secrets and configure tool-capable model names.
 7. Run the AI acceptance tests: history persistence, refresh/resume, clear, seven-day cleanup, provider fallback, tool calls, cart actions, customer order isolation, pending-order creation, and payment-boundary checks.
+
+
+## 2026-09-18 — Phase 5 AI hardening implementation
+
+Implemented the first Phase 5 hardening layer in TEST code:
+
+- Added Cloudflare Rate Limiting bindings for /api/ai/chat and /api/ai/confirm.
+- Added fail-closed behavior when the rate-limit bindings are missing.
+- Added structured Worker Observability events for AI completion, rate limiting, and mutation failures without logging customer message content or secrets.
+- Added D1 migration 0002_ai_confirmations.sql for one-time, two-minute mutation confirmations.
+- Changed AI order creation and reservation cancellation to require explicit frontend confirmation before the trusted Supabase RPC executes.
+- Added customer/action/expiry checks and one-time claim semantics for confirmation records.
+- Added cart-state binding to order confirmations.
+- Added tests/ai-security.test.mjs for static AI security-contract checks.
+- Added docs/AI_PHASE5_TEST_CHECKLIST.md as the owner-run acceptance specification.
+
+External TEST actions still required: apply the D1 migration, deploy the Worker, verify the rate-limit bindings, and execute the checklist. Production remains untouched.
