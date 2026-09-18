@@ -86,7 +86,7 @@ function injectStyles() {
     .beulah-ai__toggle.is-hidden::before, .beulah-ai__toggle.is-hidden::after { animation:none; opacity:0; }
     .beulah-ai__toggle.is-hidden .beulah-ai__toggle-icon { opacity:0; }
     .beulah-ai__toggle-icon { transition:opacity .16s ease; }\n    .beulah-ai__toggle-icon { width:25px; height:25px; display:block; }\n    .beulah-ai__toggle-icon path { vector-effect:non-scaling-stroke; }
-    .beulah-ai__panel { position:absolute; right:0; bottom:72px; width:min(380px,calc(100vw - 28px)); height:min(600px,calc(100vh - 110px)); display:flex; flex-direction:column; overflow:hidden; border:1px solid var(--color-border,#dce4dc); border-radius:18px; background:var(--color-surface,#fff); box-shadow:0 24px 70px rgba(0,0,0,.18); }
+    .beulah-ai__panel { position:absolute; right:0; bottom:72px; width:min(380px,calc(100vw - 28px)); height:min(600px,calc(100dvh - 110px)); display:flex; flex-direction:column; overflow:hidden; overscroll-behavior:contain; border:1px solid var(--color-border,#dce4dc); border-radius:18px; background:var(--color-surface,#fff); box-shadow:0 24px 70px rgba(0,0,0,.18); }
     .beulah-ai__panel[hidden] { display:none; }
     .beulah-ai__head { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--color-border,#dce4dc); background:#18300f; color:#fff; }
     .beulah-ai__head strong { display:block; font-size:.95rem; }
@@ -94,7 +94,7 @@ function injectStyles() {
     .beulah-ai__clear { margin-left:auto; margin-right:8px; border:1px solid rgba(255,255,255,.25); border-radius:7px; padding:5px 8px; background:transparent; color:#fff; font-size:.68rem; cursor:pointer; }
     .beulah-ai__close { border:0; background:transparent; color:#fff; font-size:1.2rem; cursor:pointer; }
     .beulah-ai__notice { padding:7px 12px; border-bottom:1px solid var(--color-border,#dce4dc); background:#f5f8f2; color:#667262; font-size:.68rem; line-height:1.35; text-align:center; }
-    .beulah-ai__messages { flex:1; overflow:auto; padding:14px; display:grid; align-content:start; gap:10px; background:#f7f9f5; }
+    .beulah-ai__messages { flex:1; min-height:0; overflow:auto; overscroll-behavior:contain; padding:14px; display:grid; align-content:start; gap:10px; background:#f7f9f5; }
     .beulah-ai__msg { max-width:88%; padding:10px 12px; border-radius:13px; font-size:.86rem; line-height:1.5; white-space:pre-wrap; }
     .beulah-ai__msg--user { margin-left:auto; background:#18300f; color:#fff; border-bottom-right-radius:4px; animation:beulahAiMessageIn .18s ease-out; }
     .beulah-ai__msg--assistant { background:#fff; color:#263026; border:1px solid #e0e7df; border-bottom-left-radius:4px; animation:beulahAiMessageIn .2s ease-out; }
@@ -117,7 +117,7 @@ function injectStyles() {
     @keyframes beulahAiMessageIn { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:none; } }
     @keyframes beulahAiDot { 0%,60%,100% { transform:translateY(0); opacity:.35; } 30% { transform:translateY(-4px); opacity:1; } }
     @media(prefers-reduced-motion:reduce) { .beulah-ai__toggle,.beulah-ai__toggle::before,.beulah-ai__toggle::after,.beulah-ai__msg,.beulah-ai__thinking,.beulah-ai__thinking-dots i { animation:none; } }
-    @media(max-width:520px){ .beulah-ai { right:12px; bottom:12px; } .beulah-ai__panel { right:-2px; bottom:68px; width:calc(100vw - 24px); height:min(620px,calc(100vh - 92px)); } .beulah-ai__toggle::after { right:66px; } }
+    @media(max-width:520px){ .beulah-ai { right:12px; bottom:12px; } .beulah-ai__panel { right:-2px; bottom:68px; width:calc(100vw - 24px); height:min(620px,calc(100dvh - 92px)); max-height:calc(100dvh - 92px); } .beulah-ai__toggle::after { right:66px; } }
   `;
   document.head.append(style);
 }
@@ -189,6 +189,10 @@ async function sendMessage(input, sendButton) {
 export function initAiAssistant() {
   if (initialized || document.querySelector(".admin-page")) return;
   initialized = true;
+  const viewportMeta = document.querySelector('meta[name="viewport"]');
+  if (viewportMeta && !/interactive-widget=/i.test(viewportMeta.content)) {
+    viewportMeta.content += ", interactive-widget=resizes-content";
+  }
   injectStyles();
 
   const root = document.createElement("div");
