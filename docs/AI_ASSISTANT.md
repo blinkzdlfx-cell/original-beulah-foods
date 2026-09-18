@@ -42,6 +42,21 @@ The AI retrieves both through explicit Worker tools. It does not receive arbitra
 
 The AI Knowledge admin page is `/admin/knowledge.html`.
 
+## Product understanding and candidate resolution
+
+Product references are resolved generically against the active catalogue rather than against hard-coded product names. The resolver handles:
+- partial product names
+- abbreviations and prefixes
+- joined words and spacing variations
+- common misspellings
+- multiple candidate matches
+
+The resolver ranks candidates from current catalogue metadata. It does not create products or replace Supabase as the source of truth. Current available stock is still calculated from live stock plus active reservations.
+
+A non-exact reference is not automatically treated as permission to mutate the cart. The assistant can ask a concise confirmation when a candidate needs interpretation. Search/lookup failures are converted into customer-facing outcomes; internal database errors and matching details are never exposed.
+
+The resolver is provider-independent: Cloudflare Workers AI, OpenRouter, Hugging Face, or another compatible routed model uses the same controlled Worker tool and catalogue boundary.
+
 ## Interaction and performance layer
 
 The assistant also has a controlled interaction layer outside the model prompt:
