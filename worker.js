@@ -247,8 +247,7 @@ async function verifyPaystack(request, env) {
   let reference = new URL(request.url).searchParams.get("reference");
   if (request.method === "POST") {
     try {
-      const body = await request.json();
-      reference = body?.reference || reference;
+      const body = await request.json();      reference = body?.reference || reference;
     } catch {
       return json({ error: "INVALID_JSON" }, 400);
     }
@@ -497,8 +496,7 @@ async function executeAiTool(env,auth,toolName,args,context) {
       const {response,data}=await supabaseRequest(env,"/rest/v1/how_to_guides?"+params.toString());
       if(!response.ok || !Array.isArray(data)) throw new Error("HOW_TO_COOKING_LOOKUP_FAILED");
       const byId=new Map(products.map(p=>[String(p.id),p]));
-      return {guides:data.map(g=>({...g,product:byId.get(String(g.product_id))||null}))};
-    }
+      return {guides:data.map(g=>({...g,product:byId.get(String(g.product_id))||null}))};    }
     case "search_ai_knowledge": {
       const query=String(args?.query||"").trim();
       if(!query) throw new Error("KNOWLEDGE_QUERY_REQUIRED");
@@ -668,6 +666,169 @@ async function storeAiMessage(env,conversationId,role,content){
   ]);
   await db.prepare("DELETE FROM ai_messages WHERE conversation_id=? AND id NOT IN (SELECT id FROM ai_messages WHERE conversation_id=? ORDER BY id DESC LIMIT ?)").bind(conversationId,conversationId,AI_MAX_STORED_MESSAGES).run();
 }
+async function runAiDiagnostic(request, env) {
+  const url = new URL(request.url);
+
+  if (
+    String(env.AI_DIAGNOSTIC_ENABLED || "").toLowerCase() !== "true" ||
+    url.hostname !== "original-beulah-foods.blinkzdlfx.workers.dev"
+  ) {
+    return json({ error: "NOT_FOUND" }, 404);
+  }
+
+  const checks = {};
+  let testConversationId = null;
+
+  const check = async (name, fn) => {
+    try {
+      const result = await fn();
+      checks[name] = { status: "ok", ...(result || {}) };
+      return true;
+    } catch (error) {
+      const message = String(error?.message || "UNKNOWN_ERROR");
+      console.error("AI diagnostic failed", name, error);
+      checks[name] = {
+        status: "failed",
+        error: message.slice(0, 300),
+      };
+      return false;
+    }
+  };
+
+  await check("d1_binding", async () => {
+    const db = aiDb(env);
+    const row = await db.prepare("SELECT 1 AS ok").first();
+    if (row?.ok !== 1) throw new Error("D1_READ_FAILED");
+    return { binding: "AI_DB", read: true };
+  });
+
+  await check("d1_conversation_write", async () => {
+    const db = aiDb(env);
+    testConversationId = newConversationId();
+    const now = Date.now();
+
+    await db.prepare(
+      "INSERT INTO ai_conversations(conversation_id,customer_id,created_at,updated_at) VALUES(?,?,?,?)",
+    ).bind(testConversationId, null, now, now).run();
+
+    const row = await db.prepare(
+      "SELECT conversation_id FROM ai_conversations WHERE conversation_id=?",
+    ).bind(testConversationId).first();
+
+    if (row?.conversation_id !== testConversationId) {
+      throw new Error("D1_CONVERSATION_WRITE_FAILED");
+    }
+
+    return { conversation_created: true };
+  });
+
+  await check("d1_message_write_exact_path", async () => {
+    if (!testConversationId) throw new Error("D1_CONVERSATION_TEST_REQUIRED");
+
+    await storeAiMessage(
+      env,
+      testConversationId,
+      "user",
+      "temporary AI diagnostic message",
+    );
+
+    const row = await aiDb(env).prepare(
+      "SELECT role,content FROM ai_messages WHERE conversation_id=? ORDER BY id DESC LIMIT 1",
+    ).bind(testConversationId).first();
+
+    if (row?.role !== "user" || row?.content !== "temporary AI diagnostic message") {
+      throw new Error("D1_MESSAGE_WRITE_FAILED");
+    }
+
+    return { store_ai_message: true, batch_path: true };
+  });
+
+  await check("d1_history_read", async () => {
+    if (!testConversationId) throw new Error("D1_CONVERSATION_TEST_REQUIRED");
+
+    const history = await loadAiHistory(env, testConversationId, null);
+    if (!history || history.messages.length !== 1) {
+      throw new Error("D1_HISTORY_READ_FAILED");
+    }
+
+    return { messages_found: history.messages.length };
+  });
+
+  await check("workers_ai_plain", async () => {
+    if (!providerEnabled(env, "cloudflare")) {
+      throw new Error("CLOUDFLARE_AI_PROVIDER_NOT_ENABLED");
+    }
+
+    const result = await runAiProvider(
+      env,
+      "cloudflare",
+      [{ role: "user", content: "Reply with exactly: OK" }],
+      { useTools: false },
+    );
+
+    if (!result?.text) throw new Error("AI_PLAIN_EMPTY_RESPONSE");
+
+    return {
+      model: providerModel(env, "cloudflare"),
+      response_received: true,
+    };
+  });
+
+  await check("workers_ai_with_tools", async () => {
+    if (!providerEnabled(env, "cloudflare")) {
+      throw new Error("CLOUDFLARE_AI_PROVIDER_NOT_ENABLED");
+    }
+
+    const result = await runAiProvider(
+      env,
+      "cloudflare",
+      [{
+        role: "user",
+        content: "Reply with exactly: OK. Do not call any tools.",
+      }],
+      { useTools: true },
+    );
+
+    if (!result?.text && !result?.toolCalls?.length) {
+      throw new Error("AI_TOOLS_EMPTY_RESPONSE");
+    }
+
+    return {
+      model: providerModel(env, "cloudflare"),
+      response_received: true,
+      tool_calls: result.toolCalls?.length || 0,
+    };
+  });
+
+  if (testConversationId) {
+    try {
+      await aiDb(env).prepare(
+        "DELETE FROM ai_conversations WHERE conversation_id=?",
+      ).bind(testConversationId).run();
+      checks.cleanup = { status: "ok" };
+    } catch (error) {
+      console.error("AI diagnostic cleanup failed", error);
+      checks.cleanup = {
+        status: "failed",
+        error: String(error?.message || "CLEANUP_FAILED").slice(0, 300),
+      };
+    }
+  }
+
+  const failed = Object.entries(checks)
+    .filter(([, value]) => value?.status === "failed")
+    .map(([name]) => name);
+
+  return json({
+    diagnostic: "beulah-ai-test",
+    environment: "TEST",
+    timestamp: new Date().toISOString(),
+    overall: failed.length ? "failed" : "ok",
+    failed_checks: failed,
+    checks,
+  }, failed.length ? 500 : 200);
+}
+
 async function clearAiConversation(env,request,auth){
   const id=getCookie(request,AI_CONVERSATION_COOKIE),db=aiDb(env);
   if(validConversationId(id)){
@@ -748,7 +909,6 @@ async function callOpenAiCompatible(env, provider, payload) {
     "Content-Type": "application/json",
     Authorization: "Bearer " + key,
   };
-
   if (provider === "openrouter") {
     headers["HTTP-Referer"] = "https://original-beulah-foods.blinkzdlfx.workers.dev";
     headers["X-Title"] = "Beulah Foods AI";
@@ -997,8 +1157,7 @@ async function runAiChat(request, env) {
   if (!text) throw new Error("AI_EMPTY_RESPONSE");
 
   await storeAiMessage(
-    env,
-    conversation.conversationId,
+    env,    conversation.conversationId,
     "assistant",
     text,
   );
@@ -1112,6 +1271,13 @@ export default {
     const url = new URL(request.url);
 
     try {
+      if (url.pathname === "/api/ai/diagnostic") {
+        if (request.method !== "GET") {
+          return json({ error: "METHOD_NOT_ALLOWED" }, 405, { Allow: "GET" });
+        }
+        return await runAiDiagnostic(request, env);
+      }
+
       if (url.pathname === "/api/ai/history") {
         if (request.method === "GET") return await getAiHistoryRoute(request, env);
         if (request.method === "DELETE") {
