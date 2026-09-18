@@ -58,3 +58,25 @@
   .order-detail-reservation { grid-template-columns: minmax(0, 1fr) auto; }
   .order-detail-reservation .order-card__retry { grid-column: 1 / -1; justify-content: center; }
 }
+
+/* The order history card contains a dedicated link. Keep the card's content from inheriting browser link underlines. */
+.order-card__main-link {
+  display: block;
+  color: inherit;
+  text-decoration: none !important;
+}
+
+.order-card__main-link:hover,
+.order-card__main-link:focus-visible {
+  color: inherit;
+  text-decoration: none !important;
+}
+
+.order-card__main-link .order-card__id,
+.order-card__main-link .order-card__date,
+.order-card__main-link .order-card__status,
+.order-card__main-link .order-card__total,
+.order-card__main-link .order-card__total span,
+.order-card__main-link .order-card__total strong {
+  text-decoration: none !important;
+}
