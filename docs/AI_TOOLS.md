@@ -82,3 +82,12 @@ The AI retrieves knowledge through the Worker, not through arbitrary database ac
 AI tools do not read or write chat history. The Worker owns conversation persistence in Cloudflare D1 before and after model/tool execution. Tool results are used only for the current model turn and are not persisted as raw tool messages.
 
 This keeps operational/customer data in Supabase while keeping conversational storage in D1.
+
+
+## Phase 5 mutation confirmation
+
+create_order and cancel_reservation no longer execute the underlying Supabase mutation directly from the model tool round.
+
+They first return a confirm_mutation action backed by a one-time D1 confirmation record. The storefront confirmation control calls /api/ai/confirm, where the Worker re-authenticates the customer and performs the trusted RPC only after confirmation.
+
+The confirmation record is short-lived and customer-bound. Order confirmations also bind to the cart state that was reviewed, so changing the cart invalidates the pending confirmation.
