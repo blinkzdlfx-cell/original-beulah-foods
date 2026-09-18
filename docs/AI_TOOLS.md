@@ -75,3 +75,10 @@ The AI retrieves knowledge through the Worker, not through arbitrary database ac
 - Customer RPCs use the customer's access token.
 - Knowledge retrieval exposes only active entries.
 - Worker secrets never enter model or browser messages.
+
+
+## Chat history boundary
+
+AI tools do not read or write chat history. The Worker owns conversation persistence in Cloudflare D1 before and after model/tool execution. Tool results are used only for the current model turn and are not persisted as raw tool messages.
+
+This keeps operational/customer data in Supabase while keeping conversational storage in D1.
