@@ -345,6 +345,7 @@ async function handleWebhook(request, env) {
 const AI_MODEL = "@cf/zai-org/glm-4.7-flash";
 const AI_MAX_HISTORY = 12;
 const AI_MAX_TOOL_ROUNDS = 4;
+const AI_MAX_TOOL_CALLS_PER_ROUND = 4;
 const AI_MAX_MESSAGE_CHARS = 2000;
 const AI_MAX_CART_ITEMS = 50;
 
@@ -748,6 +749,15 @@ function normalizeToolCalls(result){
   }).filter(call=>call.name);
 }
 function assistantToolMessage(result,toolCalls){
+  if(result.provider==="cloudflare"){
+    return{
+      role:"assistant",
+      content:JSON.stringify(toolCalls.map(c=>({
+        name:c.name,
+        arguments:c.args
+      })))
+    };
+  }
   return{role:"assistant",content:result.message?.content||null,tool_calls:toolCalls.map(c=>c.raw)};
 }
 function normalizeAiHistory(history){
