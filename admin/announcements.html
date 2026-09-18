@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en-NG">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Announcements — Beulah Foods Admin</title><meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="/admin/assets/favicon.svg">
+<link rel="stylesheet" href="css/variables.css"><link rel="stylesheet" href="css/admin.css"><link rel="stylesheet" href="css/admin-refinement.css"><link rel="stylesheet" href="css/announcements.css">
+</head>
+<body>
+<header class="admin-header"><div class="admin-header__inner">
+<a class="admin-brand admin-brand--link" href="/admin/"><img src="assets/beulah-admin-logo.svg" alt="Beulah Foods Administration"></a>
+<nav class="admin-page-nav" aria-label="Admin navigation"><a href="/admin/">Dashboard</a><a href="/admin/orders.html">Orders</a><a href="/admin/transactions.html">Transactions</a><a href="/admin/how-to.html">How To</a><a class="is-active" href="/admin/announcements.html">Announcements</a></nav>
+</div></header>
+<main class="admin-main">
+<div id="announcement-status" class="alert" role="status" aria-live="polite" hidden></div>
+<section class="admin-card">
+<div class="section-heading"><div><p class="muted">Customer communications</p><h1>Announcements</h1><p class="muted">Publish short announcements to selected storefront pages. Ordering is controlled by sequence.</p></div></div>
+<form id="announcement-form" class="form-grid">
+<input id="announcement-id" type="hidden">
+<div class="field"><label for="announcement-title">Title</label><input id="announcement-title" maxlength="160" required></div>
+<div class="field"><label for="announcement-target">Page</label><select id="announcement-target"><option value="all">All selected pages</option><option value="home">Home</option><option value="shop">Shop</option><option value="how-to">How To</option><option value="cart">Cart</option><option value="checkout">Checkout</option><option value="account">My Account</option></select></div>
+<div class="field full"><label for="announcement-description">Short description</label><textarea id="announcement-description" maxlength="500" rows="3" required></textarea></div>
+<div class="field"><label for="announcement-mode">Display mode</label><select id="announcement-mode"><option value="card">Card</option><option value="banner">Banner</option></select></div>
+<div class="field"><label for="announcement-sort">Display sequence</label><input id="announcement-sort" type="number" min="0" step="1" value="0"></div>
+<div class="field"><label for="announcement-start">Starts (optional)</label><input id="announcement-start" type="datetime-local"></div>
+<div class="field"><label for="announcement-expires">Expires (optional)</label><input id="announcement-expires" type="datetime-local"></div>
+<div class="field"><label for="announcement-image">Image (optional)</label><input id="announcement-image" type="file" accept="image/jpeg,image/png,image/webp"><small class="muted">JPG, PNG or WebP · maximum 5 MB</small><div id="announcement-image-preview" class="announcement-image-preview" hidden></div></div>
+<label class="field checkbox-field"><input id="announcement-active" type="checkbox" checked> Publish announcement</label>
+<div class="actions full"><button class="btn btn-primary" type="submit" id="announcement-save">Save announcement</button><button class="btn btn-secondary" type="button" id="announcement-clear">Clear</button></div>
+</form>
+</section>
+<section class="admin-card admin-section"><div class="section-heading"><div><h2>Published and scheduled announcements</h2></div></div>
+<div class="table-wrap"><table class="table"><thead><tr><th>Announcement</th><th>Target</th><th>Mode</th><th>Sequence</th><th>Status</th><th></th></tr></thead><tbody id="announcement-rows"><tr><td colspan="6" class="muted">Loading announcements…</td></tr></tbody></table></div>
+</section>
+</main>
+<script type="module" src="js/announcements.js?v=20260918-1"></script>
+</body></html>
