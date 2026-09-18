@@ -466,6 +466,43 @@ async function executeAiTool(env,auth,toolName,args,context) {
   const requireAuth=()=>{if(!auth) throw new Error("AUTHENTICATION_REQUIRED");};
 
   switch(toolName) {
+    case "get_how_to": {
+      const type=String(args?.type||"").trim();
+      const limit=Math.min(5,Math.max(1,Number.parseInt(args?.limit,10)||5));
+      if(type==="order"){
+        const {response,data}=await supabaseRequest(env,"/rest/v1/how_to_order?select=id,title,description,is_active,how_to_order_steps(id,step_number,title,description)&is_active=eq.true&limit=1");
+        if(!response.ok || !Array.isArray(data)) throw new Error("HOW_TO_ORDER_LOOKUP_FAILED");
+        return {guides:data};
+      }
+      let products=[];
+      if(args?.product_id || args?.product_slug){
+        products=await getActiveProducts(env,{productId:args?.product_id,slug:args?.product_slug,limit:1});
+      } else {
+        products=await getActiveProducts(env,{limit});
+      }
+      const ids=products.map(p=>p.id);
+      if(!ids.length) return {guides:[]};
+      const params=new URLSearchParams({
+        select:"id,product_id,title,description,is_active,how_to_steps(id,step_number,title,description)",
+        is_active:"eq.true",
+        product_id:"in.("+ids.join(",")+")",
+        limit:String(limit)
+      });
+      const {response,data}=await supabaseRequest(env,"/rest/v1/how_to_guides?"+params.toString());
+      if(!response.ok || !Array.isArray(data)) throw new Error("HOW_TO_COOKING_LOOKUP_FAILED");
+      const byId=new Map(products.map(p=>[String(p.id),p]));
+      return {guides:data.map(g=>({...g,product:byId.get(String(g.product_id))||null}))};
+    }
+    case "search_ai_knowledge": {
+      const query=String(args?.query||"").trim();
+      if(!query) throw new Error("KNOWLEDGE_QUERY_REQUIRED");
+      const {response,data}=await supabaseRequest(env,"/rest/v1/rpc/search_ai_knowledge",{
+        method:"POST",
+        body:{p_query:query,p_limit:Math.min(8,Math.max(1,Number.parseInt(args?.limit,10)||6))}
+      });
+      if(!response.ok || !Array.isArray(data)) throw new Error("KNOWLEDGE_SEARCH_FAILED");
+      return {results:data};
+    }
     case "get_categories": {
       const query=new URLSearchParams({select:"id,name,slug,description",is_active:"eq.true",order:"sort_order.asc,name.asc"});
       const {response,data}=await supabaseRequest(env,"/rest/v1/categories?"+query.toString());
