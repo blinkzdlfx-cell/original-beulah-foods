@@ -103,3 +103,24 @@ Provider credentials are server-side only. They must never be committed to the r
 ### Required D1 setup
 
 The repository contains d1/migrations/0001_ai_chat.sql. The Cloudflare D1 database itself must be created in the TEST Cloudflare account, and its real database ID must be added to the D1 binding in wrangler.toml. The binding name expected by the Worker is AI_DB.
+
+
+## Phase 5 hardening
+
+The assistant now has two separate Cloudflare Rate Limiting bindings:
+
+- AI_CHAT_RATE_LIMITER: 20 requests per minute.
+- AI_MUTATION_RATE_LIMITER: 5 requests per minute.
+
+Authenticated requests are keyed by customer identity; guest requests use the existing conversation identifier when available.
+
+Sensitive mutations are explicit two-step operations:
+
+1. AI validates the requested order/reservation action and creates a short-lived D1 confirmation record.
+2. The storefront displays a confirmation control.
+3. The customer explicitly clicks the control.
+4. /api/ai/confirm verifies the customer, action, one-time confirmation, expiry, and relevant cart state before calling the existing trusted Supabase RPC.
+
+The AI never receives a payment control. Paystack initialization and verification remain outside the AI tool contract.
+
+Phase 5 acceptance is defined in docs/AI_PHASE5_TEST_CHECKLIST.md.
