@@ -281,10 +281,11 @@ function getActionStatus(text) {
   const value = String(text || "").toLowerCase();
   if (/cancel.*reserv|release.*stock/.test(value)) return "Cancelling your reservation and releasing the reserved stock…";
   if (/reserve|confirm.*order|place.*order/.test(value)) return "Reserving your items for 15 minutes…";
-  if (/add.*cart|put.*cart/.test(value)) return "Adding the requested item to your cart…";
+  if (/add.*cart|put.*cart|add.*product|buy.*product/.test(value)) return "Finding the closest matching product…";
   if (/remove.*cart|take.*out.*cart/.test(value)) return "Removing the item from your cart…";
   if (/review.*(order|cart)|show.*cart|what.*in.*cart/.test(value)) return "Reviewing your current order…";
   if (/take me|go to|open.*(cart|orders|account|checkout|shop|how to)/.test(value)) return "Taking you to the requested page…";
+  if (/product|price|stock|available|in stock|flour|meal|food/.test(value)) return "Finding the closest matching product…";
   return "Checking that for you…";
 }
 
