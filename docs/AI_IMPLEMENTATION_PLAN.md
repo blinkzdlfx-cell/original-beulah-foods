@@ -6,29 +6,39 @@
 - [x] Bounded history and inputs.
 - [x] Controlled catalogue/category/policy reads.
 - [x] Customer-owned order reads.
+- [x] Existing How To Order and product cooking-guide retrieval.
+- [x] Admin-managed AI knowledge database and full-text search.
 - [x] Controlled browser-cart actions.
-- [x] Pending-order/reservation creation through the existing checkout RPC.
-- [x] Pending-reservation cancellation through the existing RPC.
+- [x] Pending-order/reservation creation through existing checkout logic.
+- [x] Pending-reservation cancellation through existing checkout logic.
 - [ ] Deploy and verify in TEST.
-- [ ] Verify cross-customer isolation.
 
-## Phase 2 — storefront UI
+## Phase 2 — admin knowledge management
+- [x] AI Knowledge admin page.
+- [x] Create/edit knowledge.
+- [x] Category and tags.
+- [x] Activate/deactivate knowledge.
+- [x] Delete knowledge.
+- [x] RLS restricted to admins.
+- [ ] Browser acceptance test with a real TEST admin account.
+
+## Phase 3 — storefront UI
 - [x] Reusable floating assistant component.
 - [x] Current browser cart sent with each request.
 - [x] Validated cart actions applied locally.
 - [x] Checkout link exposed after assistant-created pending orders.
 - [ ] Browser acceptance tests on Home, Shop, Product, Cart and Account.
 
-## Phase 3 — hardening
+## Phase 4 — hardening
 - [ ] Durable rate limiting.
 - [ ] Abuse/cost monitoring.
 - [ ] Explicit mutation confirmation UX.
 - [ ] Automated security tests.
+- [ ] Semantic/vector retrieval if the knowledge corpus requires it.
 - [ ] OpenRouter/AI Gateway fallback.
 
 ## Release gate
+
 No production resource is changed until the existing Beulah Foods TEST release gate passes.
 
-## Model
-
-Initial model: `@cf/zai-org/glm-4.7-flash`. Cloudflare documents this model as supporting function calling and multi-turn tool calling. It can be replaced after acceptance testing without changing the application tool boundary.
+The assistant remains outside Paystack control and outside arbitrary database access.
