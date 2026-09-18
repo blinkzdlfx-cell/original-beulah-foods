@@ -30,6 +30,16 @@
 - [ ] Browser acceptance tests on Home, Shop, Product, Cart and Account.
 
 ## Phase 4 — interaction layer and performance
+
+### Product understanding and candidate resolution
+- [x] Added a provider-independent product reference resolver before product availability is treated as a failure.
+- [x] Normalize partial names, abbreviations, joined words, spacing variations, prefixes, and likely misspellings.
+- [x] Rank candidates against the active catalogue without hard-coding any product name.
+- [x] Keep product catalogue metadata cacheable while recalculating available stock from live reservation state.
+- [x] Require customer confirmation when a non-exact product reference needs interpretation before a cart mutation.
+- [x] Return customer-safe not-found/ambiguous outcomes instead of database/search errors.
+- [x] Add deterministic storefront progress text for product resolution.
+
 - [x] Deterministic fast-path responses for common greetings/capability questions.
 - [x] Short-lived caching for slowly changing read-only knowledge.
 - [x] Keep stock, cart, orders, reservations, and payment state fresh.
