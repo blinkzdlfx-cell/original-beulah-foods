@@ -715,6 +715,13 @@ async function getFooterSupport(env) {
 }
 
 
+async function cleanupAiHistory(env){
+  const db=aiDb(env);
+  const now=Date.now();
+  await db.prepare("DELETE FROM ai_conversations WHERE updated_at<?").bind(now-AI_HISTORY_RETENTION_MS).run();
+  await db.prepare("DELETE FROM ai_confirmations WHERE expires_at<=? OR (used_at IS NOT NULL AND used_at<?)").bind(now,now-AI_HISTORY_RETENTION_MS).run();
+}
+
 async function getConversation(env,id,customerId){
   const db=aiDb(env);
   let sql="SELECT conversation_id,customer_id,created_at,updated_at FROM ai_conversations WHERE conversation_id=?";
