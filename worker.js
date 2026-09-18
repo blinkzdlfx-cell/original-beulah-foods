@@ -664,7 +664,7 @@ async function storeAiMessage(env,conversationId,role,content){
     db.prepare("INSERT INTO ai_messages(conversation_id,role,content,created_at) VALUES(?,?,?,?)").bind(conversationId,role,String(content).slice(0,AI_MAX_MESSAGE_CHARS)),
     db.prepare("UPDATE ai_conversations SET updated_at=? WHERE conversation_id=?").bind(now,conversationId)
   ]);
-  await db.prepare("DELETE FROM ai_messages WHERE conversation_id=? AND id NOT IN (SELECT id FROM ai_messages WHERE conversation_id=? ORDER BY id DESC LIMIT ?)").bind(conversationId,conversationId,AI_MAX_STORED_MESSAGES).run();
+  await db.prepare(`DELETE FROM ai_messages WHERE conversation_id=? AND id NOT IN (SELECT id FROM ai_messages WHERE conversation_id=? ORDER BY id DESC LIMIT ${AI_MAX_STORED_MESSAGES})`).bind(conversationId,conversationId).run();
 }
 async function runAiDiagnostic(request, env) {
   const url = new URL(request.url);
@@ -754,49 +754,144 @@ async function runAiDiagnostic(request, env) {
     return { messages_found: history.messages.length };
   });
 
-  await check("workers_ai_plain", async () => {
+  const describeAiResponse = (response) => {
+    const keys = response && typeof response === "object"
+      ? Object.keys(response).sort()
+      : [];
+    let serialized = null;
+    try {
+      serialized = JSON.stringify(response);
+    } catch {
+      serialized = null;
+    }
+
+    return {
+      typeof: typeof response,
+      is_null: response === null,
+      is_array: Array.isArray(response),
+      keys,
+      response_type: typeof response?.response,
+      response_length: typeof response?.response === "string" ? response.response.length : null,
+      tool_calls_type: typeof response?.tool_calls,
+      tool_calls_count: Array.isArray(response?.tool_calls) ? response.tool_calls.length : null,
+      usage_present: Boolean(response?.usage),
+      sample: serialized ? serialized.slice(0, 1200) : null,
+    };
+  };
+
+  await check("workers_ai_plain_raw", async () => {
     if (!providerEnabled(env, "cloudflare")) {
       throw new Error("CLOUDFLARE_AI_PROVIDER_NOT_ENABLED");
     }
 
-    const result = await runAiProvider(
-      env,
-      "cloudflare",
-      [{ role: "user", content: "Reply with exactly: OK" }],
-      { useTools: false },
-    );
+    let raw;
+    try {
+      raw = await env.AI.run(
+        providerModel(env, "cloudflare"),
+        {
+          messages: [{ role: "user", content: "Reply with exactly: OK" }],
+          temperature: 0.2,
+          max_tokens: 900,
+        },
+      );
+    } catch (error) {
+      throw new Error(`AI_RAW_REQUEST_FAILED:${String(error?.message || "UNKNOWN_ERROR").slice(0, 300)}`);
+    }
 
-    if (!result?.text) throw new Error("AI_PLAIN_EMPTY_RESPONSE");
+    const shape = describeAiResponse(raw);
+    if (shape.response_length === 0 || shape.response_type !== "string") {
+      const detail = JSON.stringify(shape);
+      throw new Error(`AI_PLAIN_RESPONSE_SHAPE:${detail.slice(0, 1000)}`);
+    }
 
     return {
       model: providerModel(env, "cloudflare"),
       response_received: true,
+      shape,
     };
   });
 
-  await check("workers_ai_with_tools", async () => {
+  await check("workers_ai_minimal_tool", async () => {
     if (!providerEnabled(env, "cloudflare")) {
       throw new Error("CLOUDFLARE_AI_PROVIDER_NOT_ENABLED");
     }
 
-    const result = await runAiProvider(
-      env,
-      "cloudflare",
-      [{
-        role: "user",
-        content: "Reply with exactly: OK. Do not call any tools.",
-      }],
-      { useTools: true },
-    );
+    const minimalTool = [{
+      name: "diagnostic_ping",
+      description: "Return a diagnostic acknowledgement.",
+      parameters: {
+        type: "object",
+        properties: {
+          value: {
+            type: "string",
+            description: "A short diagnostic value.",
+          },
+        },
+        required: ["value"],
+      },
+    }];
 
-    if (!result?.text && !result?.toolCalls?.length) {
-      throw new Error("AI_TOOLS_EMPTY_RESPONSE");
+    let raw;
+    try {
+      raw = await env.AI.run(
+        providerModel(env, "cloudflare"),
+        {
+          messages: [{
+            role: "user",
+            content: "Call diagnostic_ping with value OK.",
+          }],
+          temperature: 0.2,
+          max_tokens: 300,
+          tools: minimalTool,
+        },
+      );
+    } catch (error) {
+      throw new Error(`AI_MINIMAL_TOOL_FAILED:${String(error?.message || "UNKNOWN_ERROR").slice(0, 300)}`);
+    }
+
+    const shape = describeAiResponse(raw);
+    if (!Array.isArray(raw?.tool_calls)) {
+      throw new Error(`AI_MINIMAL_TOOL_RESPONSE_SHAPE:${JSON.stringify(shape).slice(0, 1000)}`);
     }
 
     return {
       model: providerModel(env, "cloudflare"),
       response_received: true,
-      tool_calls: result.toolCalls?.length || 0,
+      tool_calls: raw.tool_calls.length,
+      shape,
+    };
+  });
+
+  await check("workers_ai_full_tools_schema", async () => {
+    if (!providerEnabled(env, "cloudflare")) {
+      throw new Error("CLOUDFLARE_AI_PROVIDER_NOT_ENABLED");
+    }
+
+    let raw;
+    try {
+      raw = await env.AI.run(
+        providerModel(env, "cloudflare"),
+        {
+          messages: [{
+            role: "user",
+            content: "Reply with exactly: OK. Do not call any tools.",
+          }],
+          temperature: 0.2,
+          max_tokens: 300,
+          tools: AI_TOOLS,
+        },
+      );
+    } catch (error) {
+      throw new Error(`AI_FULL_TOOLS_FAILED:${String(error?.message || "UNKNOWN_ERROR").slice(0, 300)}`);
+    }
+
+    const shape = describeAiResponse(raw);
+
+    return {
+      model: providerModel(env, "cloudflare"),
+      response_received: true,
+      tool_calls: Array.isArray(raw?.tool_calls) ? raw.tool_calls.length : 0,
+      shape,
     };
   });
 
@@ -944,7 +1039,7 @@ async function callOpenAiCompatible(env, provider, payload) {
   }
 }
 
-async function runAiProvider(env, provider, messages, { useTools = true } = {}) {
+async function runAiProvider(env, provider, messages, { useTools = true, tools = null } = {}) {
   const model = providerModel(env, provider);
 
   if (provider === "cloudflare") {
@@ -954,7 +1049,7 @@ async function runAiProvider(env, provider, messages, { useTools = true } = {}) 
       max_tokens: 900,
     };
 
-    if (useTools) payload.tools = AI_TOOLS;
+    if (useTools) payload.tools = Array.isArray(tools) ? tools : AI_TOOLS;
 
     const response = await env.AI.run(model, payload);
     return normalizeProviderResponse(provider, response);
@@ -968,7 +1063,11 @@ async function runAiProvider(env, provider, messages, { useTools = true } = {}) 
   };
 
   if (useTools) {
-    payload.tools = openAiCompatibleTools();
+    const selectedTools = Array.isArray(tools) ? tools : AI_TOOLS;
+    payload.tools = selectedTools === AI_TOOLS ? openAiCompatibleTools() : selectedTools.map(tool => ({
+      type: "function",
+      function: tool,
+    }));
     payload.tool_choice = "auto";
   }
 
