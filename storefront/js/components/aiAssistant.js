@@ -46,6 +46,9 @@ async function loadConversationHistory() {
     const list = document.querySelector(".beulah-ai__messages");
     if (list) list.textContent = "";
     for (const item of messages) renderMessage(item.role, item.content);
+    if (!messages.length && !document.querySelector(".beulah-ai__panel")?.hidden) {
+      addMessage("assistant", "I can help with products, current stock, your orders, your cart, and checkout.");
+    }
   } catch {
     messages = [];
   }
