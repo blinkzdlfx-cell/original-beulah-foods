@@ -3,33 +3,70 @@ import { getCart, addToCart, updateCartQuantity, removeFromCart } from "../servi
 
 let initialized = false;
 let messages = [];
+let historyLoaded = false;
 
-const STORAGE_KEY = "beola_ai_chat_v1";
-const STORAGE_TTL_MS = 48 * 60 * 60 * 1000;
-
-function loadStoredMessages() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-    if (!saved || !Array.isArray(saved.messages) || Date.now() - saved.updatedAt > STORAGE_TTL_MS) {
-      localStorage.removeItem(STORAGE_KEY);
-      return [];
+function renderMessage(role, text, actions = []) {
+  const list = document.querySelector(".beulah-ai__messages");
+  if (!list) return;
+  const bubble = document.createElement("div");
+  bubble.className = "beulah-ai__msg " + (role === "user" ? "beulah-ai__msg--user" : "beulah-ai__msg--assistant");
+  bubble.textContent = text;
+  if (actions.length) {
+    const actionWrap = document.createElement("div");
+    actionWrap.className = "beulah-ai__actions";
+    for (const action of actions) {
+      if (action.type === "order_created" && action.checkout_url) {
+        const link = document.createElement("a");
+        link.className = "beulah-ai__action";
+        link.href = action.checkout_url;
+        link.textContent = "Continue to checkout";
+        actionWrap.append(link);
+      }
     }
-    return saved.messages.slice(-30);
-  } catch { localStorage.removeItem(STORAGE_KEY); return []; }
+    if (actionWrap.children.length) bubble.append(actionWrap);
+  }
+  list.append(bubble);
+  list.scrollTop = list.scrollHeight;
 }
 
-function persistMessages() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ updatedAt: Date.now(), messages: messages.slice(-30) })); } catch {}
+async function loadConversationHistory() {
+  if (historyLoaded) return;
+  historyLoaded = true;
+  try {
+    const session = await getCurrentSession();
+    const response = await fetch("/api/ai/history", {
+      headers: { ...(session?.access_token ? { Authorization: "Bearer " + session.access_token } : {}) },
+    });
+    if (!response.ok) throw new Error("HISTORY_LOAD_FAILED");
+    const data = await response.json();
+    messages = Array.isArray(data.messages) ? data.messages.slice(-30).map(item => ({
+      role: item.role === "assistant" ? "assistant" : "user",
+      content: String(item.content || ""),
+    })) : [];
+    const list = document.querySelector(".beulah-ai__messages");
+    if (list) list.textContent = "";
+    for (const item of messages) renderMessage(item.role, item.content);
+  } catch {
+    messages = [];
+  }
 }
 
-function clearStoredConversation() {
+async function clearConversation() {
+  try {
+    const session = await getCurrentSession();
+    const response = await fetch("/api/ai/history", {
+      method: "DELETE",
+      headers: { ...(session?.access_token ? { Authorization: "Bearer " + session.access_token } : {}) },
+    });
+    if (!response.ok) throw new Error("CLEAR_FAILED");
+  } catch {
+    return;
+  }
   messages = [];
-  try { localStorage.removeItem(STORAGE_KEY); } catch {}
   const list = document.querySelector(".beulah-ai__messages");
   if (list) list.textContent = "";
   addMessage("assistant", "Conversation cleared. I can help with Beulah Foods products, orders, cooking, delivery, and checkout.");
 }
-
 
 function injectStyles() {
   if (document.getElementById("beulah-ai-assistant-styles")) return;
@@ -79,28 +116,7 @@ function injectStyles() {
 
 function addMessage(role, text, actions = []) {
   messages.push({ role, content: text });
-  persistMessages();
-  const list = document.querySelector(".beulah-ai__messages");
-  if (!list) return;
-  const bubble = document.createElement("div");
-  bubble.className = "beulah-ai__msg " + (role === "user" ? "beulah-ai__msg--user" : "beulah-ai__msg--assistant");
-  bubble.textContent = text;
-  if (actions.length) {
-    const actionWrap = document.createElement("div");
-    actionWrap.className = "beulah-ai__actions";
-    for (const action of actions) {
-      if (action.type === "order_created" && action.checkout_url) {
-        const link = document.createElement("a");
-        link.className = "beulah-ai__action";
-        link.href = action.checkout_url;
-        link.textContent = "Continue to checkout";
-        actionWrap.append(link);
-      }
-    }
-    if (actionWrap.children.length) bubble.append(actionWrap);
-  }
-  list.append(bubble);
-  list.scrollTop = list.scrollHeight;
+  renderMessage(role, text, actions);
 }
 
 function applyActions(actions) {
@@ -139,12 +155,14 @@ async function sendMessage(input, sendButton) {
       },
       body: JSON.stringify({
         message: text,
-        history: messages.slice(-12),
         cart: getCart(),
       }),
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data?.error || "ASSISTANT_REQUEST_FAILED");
+    if (!response.ok) {
+      if (data?.error === "AI_HISTORY_DB_NOT_CONFIGURED") throw new Error("AI_HISTORY_DB_NOT_CONFIGURED");
+      throw new Error(data?.error || "ASSISTANT_REQUEST_FAILED");
+    }
     applyActions(data.actions);
     thinking.remove();
     addMessage("assistant", data.message || "I could not produce a response.", data.actions || []);
@@ -158,13 +176,6 @@ async function sendMessage(input, sendButton) {
     sendButton.textContent = "Send";
     input.focus();
   }
-}
-
-function renderStoredMessages() {
-  const stored = loadStoredMessages();
-  if (!stored.length) return;
-  messages = [];
-  for (const item of stored) addMessage(item.role, item.content);
 }
 
 export function initAiAssistant() {
@@ -203,11 +214,11 @@ export function initAiAssistant() {
   toggle.addEventListener("click", () => {
     panel.hidden = false;
     toggle.setAttribute("aria-expanded", "true");
-    if (!messages.length) addMessage("assistant", "I can help with products, current stock, your orders, your cart, and checkout.");
+    if (!messages.length && historyLoaded) addMessage("assistant", "I can help with products, current stock, your orders, your cart, and checkout.");
     input.focus();
   });
-  clear.addEventListener("click", clearStoredConversation);
-  renderStoredMessages();
+  clear.addEventListener("click", clearConversation);
+  loadConversationHistory();
 
   close.addEventListener("click", () => {
     panel.hidden = true;
