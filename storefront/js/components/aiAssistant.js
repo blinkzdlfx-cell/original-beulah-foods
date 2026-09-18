@@ -8,6 +8,10 @@ let pendingRetry = null;
 
 const CSS_HREF = "/storefront/css/ai-assistant.css";
 
+const NAVIGATION_TARGETS = Object.freeze({
+  cart: "/cart.html", checkout: "/checkout.html", orders: "/orders.html", account: "/account.html", shop: "/shop.html", how_to: "/how-to.html",
+});
+
 function ensureStylesheet() {
   if (document.querySelector('link[data-beulah-ai-styles]')) return;
   const link = document.createElement("link");
@@ -128,7 +132,25 @@ function createMessageElement(message, { animate = true } = {}) {
     actions.className = "beulah-ai__actions";
 
     for (const action of message.actions) {
-      if (action.type === "order_created" && action.checkout_url) {
+      if (action.type === "navigate" && NAVIGATION_TARGETS[action.target]) {
+        const link = document.createElement("a");
+        link.className = "beulah-ai__action";
+        link.href = NAVIGATION_TARGETS[action.target];
+        link.textContent = action.target === "cart" ? "Open cart" :
+          action.target === "orders" ? "View my orders" :
+          action.target === "account" ? "Open my account" :
+          action.target === "shop" ? "Browse products" :
+          action.target === "how_to" ? "Open How To" : "Continue to checkout";
+        actions.append(link);
+      } else if (action.type === "support" && action.channel === "whatsapp" && /^https:\/\/wa\.me\/\d+$/.test(action.url || "")) {
+        const link = document.createElement("a");
+        link.className = "beulah-ai__action";
+        link.href = action.url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = "Chat with Beulah Foods on WhatsApp";
+        actions.append(link);
+      } else if (action.type === "order_created" && action.checkout_url) {
         const link = document.createElement("a");
         link.className = "beulah-ai__action";
         link.href = action.checkout_url;
@@ -236,7 +258,18 @@ function removeThinking() {
   getList()?.querySelector(".beulah-ai__thinking")?.remove();
 }
 
-function showThinking() {
+function getActionStatus(text) {
+  const value = String(text || "").toLowerCase();
+  if (/cancel.*reserv|release.*stock/.test(value)) return "Cancelling your reservation and releasing the reserved stock…";
+  if (/reserve|confirm.*order|place.*order/.test(value)) return "Reserving your items for 15 minutes…";
+  if (/add.*cart|put.*cart/.test(value)) return "Adding the requested item to your cart…";
+  if (/remove.*cart|take.*out.*cart/.test(value)) return "Removing the item from your cart…";
+  if (/review.*(order|cart)|show.*cart|what.*in.*cart/.test(value)) return "Reviewing your current order…";
+  if (/take me|go to|open.*(cart|orders|account|checkout|shop|how to)/.test(value)) return "Taking you to the requested page…";
+  return "Checking that for you…";
+}
+
+function showThinking(statusText = "Checking that for you…") {
   const list = getList();
   if (!list) return null;
 
@@ -247,7 +280,7 @@ function showThinking() {
   node.setAttribute("role", "status");
   node.setAttribute("aria-label", "Beulah AI is thinking");
   node.innerHTML =
-    '<span>Thinking</span>' +
+    '<span>' + String(statusText).replace(/[<>]/g, '') + '</span>' +
     '<span class="beulah-ai__thinking-dots" aria-hidden="true"><i></i><i></i><i></i></span>';
 
   list.append(node);
@@ -383,7 +416,7 @@ async function sendMessage(text) {
   pendingRetry = value;
   addMessage("user", value, [], { anchor: true });
   input?.blur();
-  showThinking();
+  showThinking(getActionStatus(value));
 
   const list = getList();
   if (list) {
