@@ -4,229 +4,512 @@ import { getCart, addToCart, updateCartQuantity, removeFromCart } from "../servi
 let initialized = false;
 let messages = [];
 let historyLoaded = false;
+let pendingRetry = null;
 
-function renderMessage(role, text, actions = []) {
-  const list = document.querySelector(".beulah-ai__messages");
+const CSS_HREF = "/storefront/css/ai-assistant.css";
+
+function ensureStylesheet() {
+  if (document.querySelector('link[data-beulah-ai-styles]')) return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = CSS_HREF;
+  link.dataset.beulahAiStyles = "true";
+  document.head.append(link);
+}
+
+function icon(name) {
+  const icons = {
+    bot: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="7" width="16" height="13" rx="4" stroke="currentColor" stroke-width="1.8"/><path d="M9 7V5a3 3 0 0 1 6 0v2M8.5 13h.01M15.5 13h.01M9 16c1.8 1.2 4.2 1.2 6 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 2v2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+    send: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 3 10.5 13.5M21 3l-6.7 18-3.8-7.5L3 9.7 21 3Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    copy: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" stroke="currentColor" stroke-width="1.7"/></svg>',
+    close: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>',
+    trash: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    down: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  };
+  return icons[name] || "";
+}
+
+function getList() {
+  return document.querySelector(".beulah-ai__messages");
+}
+
+function getDistanceFromBottom() {
+  const list = getList();
+  if (!list) return 0;
+  return list.scrollHeight - list.scrollTop - list.clientHeight;
+}
+
+function isNearBottom(threshold = 72) {
+  return getDistanceFromBottom() <= threshold;
+}
+
+function updateScrollButton() {
+  const root = document.querySelector(".beulah-ai");
+  const button = root?.querySelector(".beulah-ai__scroll-down");
+  if (!button) return;
+  button.classList.toggle("is-visible", getDistanceFromBottom() > 72);
+}
+
+function scrollToLatest({ smooth = true, force = false } = {}) {
+  const list = getList();
   if (!list) return;
+  if (!force && !isNearBottom()) return;
+  list.scrollTo({
+    top: list.scrollHeight,
+    behavior: smooth ? "smooth" : "auto",
+  });
+  requestAnimationFrame(updateScrollButton);
+}
+
+function scrollToTurn(element, behavior = "smooth") {
+  if (!element) return;
+  element.scrollIntoView({
+    block: "start",
+    inline: "nearest",
+    behavior,
+  });
+  requestAnimationFrame(updateScrollButton);
+}
+
+function createMessageElement(message, { animate = true } = {}) {
+  const article = document.createElement("article");
+  article.className = "beulah-ai__message " +
+    (message.role === "user" ? "beulah-ai__message--user" : "beulah-ai__message--assistant");
+  article.dataset.messageId = message.id;
+
+  if (!animate) article.style.animation = "none";
+
+  if (message.role === "assistant") {
+    const avatar = document.createElement("div");
+    avatar.className = "beulah-ai__message-avatar";
+    avatar.innerHTML = icon("bot");
+    avatar.setAttribute("aria-hidden", "true");
+    article.append(avatar);
+  }
+
+  const body = document.createElement("div");
+  body.className = "beulah-ai__message-body";
+
+  const meta = document.createElement("div");
+  meta.className = "beulah-ai__message-meta";
+  meta.textContent = message.role === "user" ? "You" : "Beulah AI";
+  body.append(meta);
+
   const bubble = document.createElement("div");
-  bubble.className = "beulah-ai__msg " + (role === "user" ? "beulah-ai__msg--user" : "beulah-ai__msg--assistant");
-  bubble.textContent = text;
-  if (actions.length) {
-    const actionWrap = document.createElement("div");
-    actionWrap.className = "beulah-ai__actions";
-    for (const action of actions) {
+  bubble.className = "beulah-ai__bubble";
+  bubble.textContent = message.content;
+
+  if (message.error) {
+    bubble.classList.add("beulah-ai__error");
+    const copy = document.createElement("p");
+    copy.className = "beulah-ai__error-copy";
+    copy.textContent = message.content;
+    bubble.textContent = "";
+    bubble.append(copy);
+
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.className = "beulah-ai__retry";
+    retry.textContent = "Try again";
+    retry.addEventListener("click", () => {
+      if (pendingRetry) {
+        const retryText = pendingRetry;
+        pendingRetry = null;
+        sendMessage(retryText);
+      }
+    });
+    bubble.append(retry);
+  }
+
+  body.append(bubble);
+
+  if (message.actions?.length) {
+    const actions = document.createElement("div");
+    actions.className = "beulah-ai__actions";
+
+    for (const action of message.actions) {
       if (action.type === "order_created" && action.checkout_url) {
         const link = document.createElement("a");
         link.className = "beulah-ai__action";
         link.href = action.checkout_url;
         link.textContent = "Continue to checkout";
-        actionWrap.append(link);
+        actions.append(link);
       }
     }
-    if (actionWrap.children.length) bubble.append(actionWrap);
+
+    if (actions.children.length) body.append(actions);
   }
-  list.append(bubble);
+
+  if (message.role === "assistant" && !message.error && message.content) {
+    const footer = document.createElement("div");
+    footer.className = "beulah-ai__message-footer";
+
+    const copyButton = document.createElement("button");
+    copyButton.type = "button";
+    copyButton.className = "beulah-ai__message-action";
+    copyButton.innerHTML = icon("copy") + " Copy";
+    copyButton.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(message.content);
+        copyButton.textContent = "Copied";
+        setTimeout(() => {
+          copyButton.innerHTML = icon("copy") + " Copy";
+        }, 1400);
+      } catch {
+        copyButton.textContent = "Copy unavailable";
+      }
+    });
+
+    footer.append(copyButton);
+    body.append(footer);
+  }
+
+  article.append(body);
+  return article;
+}
+
+function renderTranscript({ preserveScroll = false } = {}) {
+  const list = getList();
+  if (!list) return;
+
+  const previousDistance = getDistanceFromBottom();
+  list.querySelectorAll(".beulah-ai__message, .beulah-ai__thinking, .beulah-ai__empty").forEach(node => node.remove());
+
+  if (!messages.length) {
+    const empty = document.createElement("div");
+    empty.className = "beulah-ai__empty";
+    empty.innerHTML =
+      '<div class="beulah-ai__empty-icon">' + icon("bot") + '</div>' +
+      '<p class="beulah-ai__empty-title">How can I help?</p>' +
+      '<p class="beulah-ai__empty-copy">Ask about Beulah Foods products, stock, cooking, orders, delivery or checkout.</p>';
+    list.append(empty);
+    updateScrollButton();
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  for (const message of messages) {
+    fragment.append(createMessageElement(message, { animate: false }));
+  }
+  list.append(fragment);
+
+  if (preserveScroll) {
+    list.scrollTop = Math.max(0, list.scrollHeight - list.clientHeight - previousDistance);
+  } else {
+    list.scrollTop = list.scrollHeight;
+  }
+  updateScrollButton();
+}
+
+function addMessage(role, content, actions = [], options = {}) {
+  const message = {
+    id: crypto.randomUUID(),
+    role,
+    content: String(content || ""),
+    actions,
+    error: Boolean(options.error),
+  };
+
+  messages.push(message);
+
+  const list = getList();
+  if (!list) return null;
+
+  list.querySelector(".beulah-ai__empty")?.remove();
+
+  const element = createMessageElement(message);
+  list.append(element);
+
   requestAnimationFrame(() => {
-    list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
+    if (options.anchor) {
+      scrollToTurn(element);
+    } else if (options.follow !== false) {
+      scrollToLatest({ smooth: true, force: true });
+    }
+    updateScrollButton();
   });
+
+  return message;
+}
+
+function removeThinking() {
+  getList()?.querySelector(".beulah-ai__thinking")?.remove();
+}
+
+function showThinking() {
+  const list = getList();
+  if (!list) return null;
+
+  removeThinking();
+
+  const node = document.createElement("div");
+  node.className = "beulah-ai__thinking";
+  node.setAttribute("role", "status");
+  node.setAttribute("aria-label", "Beulah AI is thinking");
+  node.innerHTML =
+    '<span>Thinking</span>' +
+    '<span class="beulah-ai__thinking-dots" aria-hidden="true"><i></i><i></i><i></i></span>';
+
+  list.append(node);
+  return node;
 }
 
 async function loadConversationHistory() {
   if (historyLoaded) return;
   historyLoaded = true;
+
   try {
     const session = await getCurrentSession();
     const response = await fetch("/api/ai/history", {
-      headers: { ...(session?.access_token ? { Authorization: "Bearer " + session.access_token } : {}) },
+      headers: session?.access_token
+        ? { Authorization: "Bearer " + session.access_token }
+        : {},
     });
+
     if (!response.ok) throw new Error("HISTORY_LOAD_FAILED");
+
     const data = await response.json();
-    messages = Array.isArray(data.messages) ? data.messages.slice(-30).map(item => ({
-      role: item.role === "assistant" ? "assistant" : "user",
-      content: String(item.content || ""),
-    })) : [];
-    const list = document.querySelector(".beulah-ai__messages");
-    if (list) list.textContent = "";
-    for (const item of messages) renderMessage(item.role, item.content);
-    if (!messages.length && !document.querySelector(".beulah-ai__panel")?.hidden) {
-      addMessage("assistant", "I can help with products, current stock, your orders, your cart, and checkout.");
-    }
+    messages = Array.isArray(data.messages)
+      ? data.messages.slice(-30).map(item => ({
+          id: crypto.randomUUID(),
+          role: item.role === "assistant" ? "assistant" : "user",
+          content: String(item.content || ""),
+          actions: [],
+          error: false,
+        }))
+      : [];
+
+    renderTranscript();
   } catch {
     messages = [];
+    renderTranscript();
   }
 }
 
 async function clearConversation() {
+  const clearButton = document.querySelector(".beulah-ai__clear");
+  if (clearButton) clearButton.disabled = true;
+
   try {
     const session = await getCurrentSession();
     const response = await fetch("/api/ai/history", {
       method: "DELETE",
-      headers: { ...(session?.access_token ? { Authorization: "Bearer " + session.access_token } : {}) },
+      headers: session?.access_token
+        ? { Authorization: "Bearer " + session.access_token }
+        : {},
     });
+
     if (!response.ok) throw new Error("CLEAR_FAILED");
+
+    messages = [];
+    pendingRetry = null;
+    renderTranscript();
   } catch {
-    return;
+    addMessage("assistant", "I couldn't clear this conversation. Please try again.", [], { error: true });
+  } finally {
+    if (clearButton) clearButton.disabled = false;
   }
-  messages = [];
-  const list = document.querySelector(".beulah-ai__messages");
-  if (list) list.textContent = "";
-  addMessage("assistant", "Conversation cleared. I can help with Beulah Foods products, orders, cooking, delivery, and checkout.");
-}
-
-function injectStyles() {
-  if (document.getElementById("beulah-ai-assistant-styles")) return;
-  const style = document.createElement("style");
-  style.id = "beulah-ai-assistant-styles";
-  style.textContent = `
-    .beulah-ai { position:fixed; right:18px; bottom:18px; z-index:180; font-family:inherit; }
-    .beulah-ai__toggle { position:relative; width:58px; height:58px; display:grid; place-items:center; border:0; border-radius:50%; background:var(--color-accent,#c9f36a); color:var(--color-accent-ink,#18300f); box-shadow:0 12px 30px rgba(0,0,0,.18); cursor:pointer; animation:beulahAiPulse 2.2s ease-in-out infinite; }
-    .beulah-ai__toggle::before { content:""; position:absolute; inset:-7px; border:2px solid rgba(201,243,106,.7); border-radius:50%; animation:beulahAiRing 2.2s ease-out infinite; pointer-events:none; }
-    .beulah-ai__toggle::after { content:"Ask Beulah AI"; position:absolute; right:68px; top:50%; transform:translateY(-50%); white-space:nowrap; padding:7px 10px; border-radius:8px; background:#18300f; color:#fff; font-size:.72rem; font-weight:800; box-shadow:0 8px 24px rgba(0,0,0,.16); opacity:0; pointer-events:none; animation:beulahAiHint 5s ease-in-out 1s infinite; }
-    .beulah-ai__toggle:hover::after,.beulah-ai__toggle:focus-visible::after { opacity:1; animation:none; }
-    .beulah-ai__toggle { transition:opacity .24s ease, transform .24s ease, visibility 0s linear 0s; }
-    .beulah-ai__toggle.is-hidden { opacity:0; transform:scale(.72); visibility:hidden; pointer-events:none; animation:none; transition:opacity .24s ease, transform .24s ease, visibility 0s linear .24s; }
-    .beulah-ai__toggle.is-hidden::before, .beulah-ai__toggle.is-hidden::after { animation:none; opacity:0; }
-    .beulah-ai__toggle.is-hidden .beulah-ai__toggle-icon { opacity:0; }
-    .beulah-ai__toggle-icon { transition:opacity .16s ease; }\n    .beulah-ai__toggle-icon { width:25px; height:25px; display:block; }\n    .beulah-ai__toggle-icon path { vector-effect:non-scaling-stroke; }
-    .beulah-ai__panel { position:absolute; right:0; bottom:72px; width:min(380px,calc(100vw - 28px)); height:min(600px,calc(100dvh - 110px)); display:flex; flex-direction:column; overflow:hidden; overscroll-behavior:contain; border:1px solid var(--color-border,#dce4dc); border-radius:18px; background:var(--color-surface,#fff); box-shadow:0 24px 70px rgba(0,0,0,.18); }
-    .beulah-ai__panel[hidden] { display:none; }
-    .beulah-ai__head { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--color-border,#dce4dc); background:#18300f; color:#fff; }
-    .beulah-ai__head strong { display:block; font-size:.95rem; }
-    .beulah-ai__head span { display:block; margin-top:2px; color:rgba(255,255,255,.7); font-size:.74rem; }
-    .beulah-ai__clear { margin-left:auto; margin-right:8px; border:1px solid rgba(255,255,255,.25); border-radius:7px; padding:5px 8px; background:transparent; color:#fff; font-size:.68rem; cursor:pointer; }
-    .beulah-ai__close { border:0; background:transparent; color:#fff; font-size:1.2rem; cursor:pointer; }
-    .beulah-ai__notice { padding:7px 12px; border-bottom:1px solid var(--color-border,#dce4dc); background:#f5f8f2; color:#667262; font-size:.68rem; line-height:1.35; text-align:center; }
-    .beulah-ai__messages { position:relative; flex:1; min-height:0; overflow:auto; overscroll-behavior:contain; scroll-behavior:smooth; padding:14px; display:grid; align-content:start; gap:10px; background:#f7f9f5; }
-    .beulah-ai__scroll-down { position:absolute; right:12px; bottom:10px; z-index:3; width:36px; height:36px; display:grid; place-items:center; border:1px solid #d4dfd1; border-radius:50%; background:#fff; color:#18300f; box-shadow:0 5px 18px rgba(0,0,0,.16); cursor:pointer; opacity:0; transform:translateY(8px); pointer-events:none; transition:opacity .18s ease, transform .18s ease; }
-    .beulah-ai__scroll-down.is-visible { opacity:1; transform:none; pointer-events:auto; }
-    .beulah-ai__scroll-down svg { width:18px; height:18px; }
-    .beulah-ai__msg { max-width:88%; padding:10px 12px; border-radius:13px; font-size:.86rem; line-height:1.5; white-space:pre-wrap; }
-    .beulah-ai__msg--user { margin-left:auto; background:#18300f; color:#fff; border-bottom-right-radius:4px; animation:beulahAiMessageIn .18s ease-out; }
-    .beulah-ai__msg--assistant { background:#fff; color:#263026; border:1px solid #e0e7df; border-bottom-left-radius:4px; animation:beulahAiMessageIn .2s ease-out; }
-    .beulah-ai__actions { margin-top:7px; display:flex; flex-wrap:wrap; gap:7px; }
-    .beulah-ai__action { display:inline-flex; align-items:center; padding:7px 9px; border:1px solid #d7e1d4; border-radius:9px; background:#fff; color:#315222; font-size:.76rem; font-weight:700; text-decoration:none; }
-    .beulah-ai__thinking { display:flex; align-items:center; gap:7px; width:max-content; padding:10px 13px; border:1px solid #e0e7df; border-radius:13px; border-bottom-left-radius:4px; background:#fff; color:#5b6958; font-size:.78rem; animation:beulahAiMessageIn .2s ease-out; }
-    .beulah-ai__thinking-label { font-weight:700; }
-    .beulah-ai__thinking-dots { display:flex; gap:3px; }
-    .beulah-ai__thinking-dots i { width:5px; height:5px; border-radius:50%; background:currentColor; animation:beulahAiDot 1.2s ease-in-out infinite; }
-    .beulah-ai__thinking-dots i:nth-child(2) { animation-delay:.15s; }
-    .beulah-ai__thinking-dots i:nth-child(3) { animation-delay:.3s; }
-    .beulah-ai__form { display:flex; gap:8px; padding:10px; border-top:1px solid var(--color-border,#dce4dc); background:#fff; }
-    .beulah-ai__input { min-width:0; flex:1; resize:none; min-height:42px; max-height:100px; padding:10px 11px; border:1px solid #ccd7cb; border-radius:10px; font:inherit; font-size:.86rem; outline:none; }
-    .beulah-ai__input:focus { border-color:#7e9b70; box-shadow:0 0 0 3px rgba(126,155,112,.12); }
-    .beulah-ai__send { align-self:flex-end; min-width:72px; height:42px; border:0; border-radius:10px; background:#18300f; color:#fff; font-weight:700; cursor:pointer; }
-    .beulah-ai__send:disabled { opacity:.7; cursor:wait; }
-    @keyframes beulahAiPulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.07); } }
-    @keyframes beulahAiRing { 0% { transform:scale(.88); opacity:.9; } 70%,100% { transform:scale(1.22); opacity:0; } }
-    @keyframes beulahAiHint { 0%,20%,100% { opacity:0; transform:translateY(-50%) translateX(5px); } 5%,16% { opacity:1; transform:translateY(-50%) translateX(0); } }
-    @keyframes beulahAiMessageIn { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:none; } }
-    @keyframes beulahAiDot { 0%,60%,100% { transform:translateY(0); opacity:.35; } 30% { transform:translateY(-4px); opacity:1; } }
-    @media(prefers-reduced-motion:reduce) { .beulah-ai__toggle,.beulah-ai__toggle::before,.beulah-ai__toggle::after,.beulah-ai__msg,.beulah-ai__thinking,.beulah-ai__thinking-dots i { animation:none; } }
-    @media(max-width:520px){ .beulah-ai { right:12px; bottom:12px; } .beulah-ai__panel { right:-2px; bottom:68px; width:calc(100vw - 24px); height:min(620px,calc(100dvh - 92px)); max-height:calc(100dvh - 92px); } .beulah-ai__toggle::after { right:66px; } }
-  `;
-  document.head.append(style);
-}
-
-function addMessage(role, text, actions = []) {
-  messages.push({ role, content: text });
-  renderMessage(role, text, actions);
 }
 
 function applyActions(actions) {
   for (const action of actions || []) {
     if (action.type !== "cart") continue;
-    if (action.operation === "add") addToCart(action.product_id, action.quantity);
-    else if (action.operation === "set") updateCartQuantity(action.product_id, action.quantity);
-    else if (action.operation === "remove") removeFromCart(action.product_id);
+
+    if (action.operation === "add") {
+      addToCart(action.product_id, action.quantity);
+    } else if (action.operation === "set") {
+      updateCartQuantity(action.product_id, action.quantity);
+    } else if (action.operation === "remove") {
+      removeFromCart(action.product_id);
+    }
   }
 }
 
-async function sendMessage(input, sendButton) {
-  const text = input.value.trim();
-  if (!text) return;
-  input.value = "";
-  addMessage("user", text);
-  input.blur();
-  sendButton.disabled = true;
-  sendButton.textContent = "…";
+function customerError(errorCode) {
+  if (errorCode === "AUTHENTICATION_REQUIRED") {
+    return "Please log in to use that customer-account action.";
+  }
 
-  const list = document.querySelector(".beulah-ai__messages");
-  const thinking = document.createElement("div");
-  thinking.className = "beulah-ai__thinking";
-  thinking.setAttribute("role", "status");
-  thinking.setAttribute("aria-label", "Beulah Assistant is thinking");
-  thinking.innerHTML = '<span class="beulah-ai__thinking-label">Thinking</span><span class="beulah-ai__thinking-dots" aria-hidden="true"><i></i><i></i><i></i></span>';
-  list?.append(thinking);
-  if (list) list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
+  if (errorCode === "AI_NOT_CONFIGURED") {
+    return "Beulah AI is temporarily unavailable. Please try again shortly.";
+  }
+
+  if (errorCode === "AI_HISTORY_DB_NOT_CONFIGURED") {
+    return "The assistant is temporarily unavailable. Please try again shortly.";
+  }
+
+  return "I couldn't complete that request. Please try again.";
+}
+
+async function requestAssistant(text) {
+  const session = await getCurrentSession();
+
+  const response = await fetch("/api/ai/chat", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(session?.access_token ? { Authorization: "Bearer " + session.access_token } : {}),
+    },
+    body: JSON.stringify({
+      message: text,
+      cart: getCart(),
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const error = new Error(data?.error || "ASSISTANT_REQUEST_FAILED");
+    error.code = data?.error || "ASSISTANT_REQUEST_FAILED";
+    throw error;
+  }
+
+  return data;
+}
+
+async function sendMessage(text) {
+  const value = String(text || "").trim();
+  const input = document.querySelector(".beulah-ai__input");
+  const sendButton = document.querySelector(".beulah-ai__send");
+
+  if (!value || sendButton?.disabled) return;
+
+  if (input) input.value = "";
+  if (sendButton) {
+    sendButton.disabled = true;
+    sendButton.innerHTML = '<span aria-hidden="true">…</span>';
+  }
+
+  pendingRetry = value;
+  addMessage("user", value, [], { anchor: true });
+  input?.blur();
+  showThinking();
+
+  const list = getList();
+  if (list) {
+    requestAnimationFrame(() => {
+      const thinking = list.querySelector(".beulah-ai__thinking");
+      if (thinking && isNearBottom(160)) {
+        list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
+      }
+    });
+  }
 
   try {
-    const session = await getCurrentSession();
-    const response = await fetch("/api/ai/chat", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(session?.access_token ? { Authorization: "Bearer " + session.access_token } : {}),
-      },
-      body: JSON.stringify({
-        message: text,
-        cart: getCart(),
-      }),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      if (data?.error === "AI_HISTORY_DB_NOT_CONFIGURED") throw new Error("AI_HISTORY_DB_NOT_CONFIGURED");
-      throw new Error(data?.error || "ASSISTANT_REQUEST_FAILED");
-    }
+    const data = await requestAssistant(value);
     applyActions(data.actions);
-    thinking.remove();
-    addMessage("assistant", data.message || "I could not produce a response.", data.actions || []);
-    if (list) list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
+
+    removeThinking();
+    addMessage("assistant", data.message || "I couldn't produce a response.", data.actions || [], {
+      follow: true,
+    });
+    pendingRetry = null;
   } catch (error) {
-    thinking.remove();
-    addMessage("assistant", error?.message === "AUTHENTICATION_REQUIRED"
-      ? "Please log in to use that customer-account action."
-      : "I’m unable to complete that request right now. Please try again.");
-    if (list) list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
+    removeThinking();
+
+    const failedText = pendingRetry;
+    addMessage("assistant", customerError(error?.code), [], { error: true, follow: true });
+
+    const retry = document.querySelector(".beulah-ai__messages .beulah-ai__retry");
+    retry?.addEventListener("click", () => {
+      pendingRetry = failedText;
+    }, { once: true });
   } finally {
-    sendButton.disabled = false;
-    sendButton.textContent = "Send";
-    input.focus();
+    if (sendButton) {
+      sendButton.disabled = false;
+      sendButton.innerHTML = icon("send");
+      sendButton.setAttribute("aria-label", "Send message");
+    }
+
+    // Do not focus the textarea here. On mobile that would reopen the keyboard
+    // after the response and cover the latest message.
+    input?.blur();
+    updateScrollButton();
   }
+}
+
+function buildAssistant() {
+  const root = document.createElement("div");
+  root.className = "beulah-ai";
+
+  root.innerHTML = `
+    <section class="beulah-ai__panel" hidden aria-label="Beulah Foods AI assistant">
+      <header class="beulah-ai__head">
+        <div class="beulah-ai__identity">
+          <div class="beulah-ai__avatar" aria-hidden="true">${icon("bot")}</div>
+          <div class="beulah-ai__identity-copy">
+            <strong class="beulah-ai__identity-title">Beulah AI</strong>
+            <span class="beulah-ai__identity-status"><i class="beulah-ai__status-dot"></i>Beulah Foods assistant</span>
+          </div>
+        </div>
+
+        <button class="beulah-ai__head-action beulah-ai__clear" type="button" aria-label="Clear conversation" title="Clear conversation">
+          ${icon("trash")}
+        </button>
+        <button class="beulah-ai__head-action beulah-ai__close" type="button" aria-label="Close assistant" title="Close assistant">
+          ${icon("close")}
+        </button>
+      </header>
+
+      <div class="beulah-ai__notice">
+        Beulah AI can make mistakes. Confirm important information with Beulah Foods.
+      </div>
+
+      <div class="beulah-ai__messages" role="log" aria-label="Conversation" aria-live="polite" tabindex="0">
+        <button class="beulah-ai__scroll-down" type="button" aria-label="Jump to latest message" title="Jump to latest message">
+          ${icon("down")}
+        </button>
+      </div>
+
+      <form class="beulah-ai__form">
+        <div class="beulah-ai__input-wrap">
+          <textarea
+            class="beulah-ai__input"
+            rows="1"
+            maxlength="2000"
+            autocomplete="off"
+            enterkeyhint="send"
+            aria-label="Message Beulah AI"
+            placeholder="Ask about Beulah Foods…"
+          ></textarea>
+        </div>
+
+        <button class="beulah-ai__send" type="submit" aria-label="Send message" title="Send message">
+          ${icon("send")}
+        </button>
+      </form>
+    </section>
+
+    <button class="beulah-ai__toggle" type="button" aria-label="Ask Beulah AI" aria-expanded="false">
+      <svg class="beulah-ai__toggle-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H7l-3.5 2V11.5A7.5 7.5 0 0 1 11 4h1.5A7.5 7.5 0 0 1 20 11.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M8 12h.01M12 12h.01M16 12h.01" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+    </button>
+  `;
+
+  document.body.append(root);
+  return root;
+}
+
+function resizeComposer(input) {
+  if (!input) return;
+  input.style.height = "auto";
+  input.style.height = Math.min(input.scrollHeight, 110) + "px";
 }
 
 export function initAiAssistant() {
   if (initialized || document.querySelector(".admin-page")) return;
   initialized = true;
+
+  ensureStylesheet();
+
   const viewportMeta = document.querySelector('meta[name="viewport"]');
   if (viewportMeta && !/interactive-widget=/i.test(viewportMeta.content)) {
     viewportMeta.content += ", interactive-widget=resizes-content";
   }
-  injectStyles();
 
-  const root = document.createElement("div");
-  root.className = "beulah-ai";
-  root.innerHTML = `
-    <section class="beulah-ai__panel" hidden aria-label="Beulah Foods AI assistant">
-      <header class="beulah-ai__head">
-        <div><strong>Beulah AI Assistant</strong><span>Beulah Foods customer assistant</span></div>
-        <button class="beulah-ai__clear" type="button" aria-label="Clear conversation">Clear</button>
-        <button class="beulah-ai__close" type="button" aria-label="Close assistant">×</button>
-      </header>
-      <div class="beulah-ai__notice">Beulah AI can make mistakes. For important information, please confirm with Beulah Foods.</div>
-      <div class="beulah-ai__messages" aria-live="polite">
-        <button class="beulah-ai__scroll-down" type="button" aria-label="Scroll to latest message" title="Scroll to latest message">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </button>
-      </div>
-      <form class="beulah-ai__form">
-        <textarea class="beulah-ai__input" rows="1" maxlength="2000" placeholder="Ask about Beulah Foods…"></textarea>
-        <button class="beulah-ai__send" type="submit">Send</button>
-      </form>
-    </section>
-    <button class="beulah-ai__toggle" type="button" aria-label="Ask Beulah AI" aria-expanded="false"><svg class="beulah-ai__toggle-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H7l-3.5 2V11.5A7.5 7.5 0 0 1 11 4h1.5A7.5 7.5 0 0 1 20 11.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 12h.01M12 12h.01M16 12h.01" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button>
-  `;
-  document.body.append(root);
-
+  const root = buildAssistant();
   const panel = root.querySelector(".beulah-ai__panel");
   const toggle = root.querySelector(".beulah-ai__toggle");
   const close = root.querySelector(".beulah-ai__close");
@@ -237,46 +520,48 @@ export function initAiAssistant() {
   const scrollDown = root.querySelector(".beulah-ai__scroll-down");
   const messageList = root.querySelector(".beulah-ai__messages");
 
-  const updateScrollButton = () => {
-    if (!messageList || !scrollDown) return;
-    const distanceFromBottom = messageList.scrollHeight - messageList.scrollTop - messageList.clientHeight;
-    scrollDown.classList.toggle("is-visible", distanceFromBottom > 80);
-  };
-  const scrollToLatest = (smooth = true) => {
-    if (!messageList) return;
-    messageList.scrollTo({ top: messageList.scrollHeight, behavior: smooth ? "smooth" : "auto" });
-  };
-  messageList?.addEventListener("scroll", updateScrollButton, { passive: true });
-  scrollDown?.addEventListener("click", () => {
-    scrollToLatest(true);
-    input.focus({ preventScroll: true });
+  messageList.addEventListener("scroll", updateScrollButton, { passive: true });
+
+  scrollDown.addEventListener("click", () => {
+    scrollToLatest({ smooth: true, force: true });
+    input?.blur();
   });
 
   toggle.addEventListener("click", () => {
-    root.classList.add("is-open");
-    toggle.classList.add("is-hidden");
     panel.hidden = false;
+    toggle.classList.add("is-hidden");
     toggle.setAttribute("aria-expanded", "true");
-    if (!messages.length && historyLoaded) addMessage("assistant", "I can help with products, current stock, your orders, your cart, and checkout.");
-    input.focus();
+
+    if (!messages.length && historyLoaded) renderTranscript();
+    requestAnimationFrame(() => {
+      scrollToLatest({ smooth: false, force: true });
+      updateScrollButton();
+    });
+
+    // Do not autofocus on mobile. The customer can tap the composer when ready.
   });
-  clear.addEventListener("click", clearConversation);
-  loadConversationHistory();
 
   close.addEventListener("click", () => {
     panel.hidden = true;
-    root.classList.remove("is-open");
     toggle.classList.remove("is-hidden");
     toggle.setAttribute("aria-expanded", "false");
+    input?.blur();
   });
+
+  clear.addEventListener("click", clearConversation);
   form.addEventListener("submit", event => {
     event.preventDefault();
-    sendMessage(input, send);
+    sendMessage(input.value, send);
   });
+
+  input.addEventListener("input", () => resizeComposer(input));
+
   input.addEventListener("keydown", event => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      sendMessage(input, send);
+      sendMessage(input.value, send);
     }
   });
+
+  loadConversationHistory();
 }
