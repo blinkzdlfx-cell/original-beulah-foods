@@ -887,10 +887,29 @@ function assetRequest(request, env) {
 }
 
 export default {
+  async scheduled(event, env, ctx) {
+    try {
+      if (env.AI_DB) await cleanupAiHistory(env);
+    } catch (error) {
+      console.error("AI history cleanup failed", error);
+    }
+  },
+
   async fetch(request, env) {
     const url = new URL(request.url);
 
     try {
+      if (url.pathname === "/api/ai/history") {
+        if (request.method !== "GET") return json({ error: "METHOD_NOT_ALLOWED" }, 405, { Allow: "GET" });
+        return await getAiHistoryRoute(request, env);
+      }
+
+      if (url.pathname === "/api/ai/history") {
+        if (request.method !== "DELETE") return json({ error: "METHOD_NOT_ALLOWED" }, 405, { Allow: "DELETE" });
+        const auth = await authenticateCustomer(request, env);
+        return await clearAiConversation(env, request, auth);
+      }
+
       if (url.pathname === "/api/ai/chat") {
         if (request.method !== "POST") return json({ error: "METHOD_NOT_ALLOWED" }, 405, { Allow: "POST" });
         return await runAiChat(request, env);
@@ -915,6 +934,8 @@ export default {
     } catch (error) {
       console.error(error);
       const message = error?.message || "INTERNAL_SERVER_ERROR";
+      if (message === "AI_HISTORY_DB_NOT_CONFIGURED") return json({ error: "AI_HISTORY_DB_NOT_CONFIGURED" }, 503);
+      if (message === "AI_NOT_CONFIGURED") return json({ error: "AI_NOT_CONFIGURED" }, 503);
       if (message.startsWith("SERVER_SECRET_NOT_CONFIGURED:")) return json({ error: "PAYMENT_SERVER_NOT_CONFIGURED" }, 503);
       return json({ error: "INTERNAL_SERVER_ERROR" }, 500);
     }
