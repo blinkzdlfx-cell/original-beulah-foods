@@ -384,7 +384,8 @@ const AI_TOOLS = [
   {name:"update_cart",description:"Validate availability and return a client action to set a browser-cart quantity.",parameters:{type:"object",properties:{product_id:{type:"string"},quantity:{type:"integer",minimum:1,maximum:50}},required:["product_id","quantity"],additionalProperties:false}},
   {name:"remove_from_cart",description:"Return a client action to remove a product from the browser cart.",parameters:{type:"object",properties:{product_id:{type:"string"}},required:["product_id"],additionalProperties:false}},
   {name:"create_order",description:"Create a pending order and its existing 15-minute stock reservation from the authenticated customer's browser cart. Use only when the authenticated customer explicitly asks to place/confirm the order or explicitly asks to reserve the stock after reviewing the order. Payment is not started.",parameters:{type:"object",properties:{promo_code:{type:"string"}},additionalProperties:false}},
-  {name:"cancel_reservation",description:"Cancel the authenticated customer's pending order stock reservation. Use when the customer explicitly asks to cancel/release the reservation. Requires the reservation's order ID.",parameters:{type:"object",properties:{order_id:{type:"string"}},required:["order_id"],additionalProperties:false}}  {name:"get_support_contact",description:"Read the current customer support WhatsApp contact from the public storefront footer.",parameters:{type:"object",properties:{},additionalProperties:false}},
+  {name:"cancel_reservation",description:"Cancel the authenticated customer's pending order stock reservation. Use when the customer explicitly asks to cancel/release the reservation. Requires the reservation's order ID.",parameters:{type:"object",properties:{order_id:{type:"string"}},required:["order_id"],additionalProperties:false}},
+  {name:"get_support_contact",description:"Read the current customer support WhatsApp contact from the public storefront footer.",parameters:{type:"object",properties:{},additionalProperties:false}},
 
 ];
 
@@ -479,7 +480,7 @@ async function executeAiTool(env,auth,toolName,args,context) {
 
   switch(toolName) {
     case "get_how_to": {
-      return await cachedAiRead("howto:"+JSON.stringify(args||{}), AI_READ_CACHE_TTL.how_to, async () => { const type=String(args?.type||"").trim();
+      const type=String(args?.type||"").trim();
       const limit=Math.min(5,Math.max(1,Number.parseInt(args?.limit,10)||5));
       if(type==="order"){
         const {response,data}=await supabaseRequest(env,"/rest/v1/how_to_order?select=id,title,description,is_active,how_to_order_steps(id,step_number,title,description)&is_active=eq.true&limit=1");
@@ -503,7 +504,7 @@ async function executeAiTool(env,auth,toolName,args,context) {
       const {response,data}=await supabaseRequest(env,"/rest/v1/how_to_guides?"+params.toString());
       if(!response.ok || !Array.isArray(data)) throw new Error("HOW_TO_COOKING_LOOKUP_FAILED");
       const byId=new Map(products.map(p=>[String(p.id),p]));
-      return {guides:data.map(g=>({...g,product:byId.get(String(g.product_id))||null}))}; });
+      return {guides:data.map(g=>({...g,product:byId.get(String(g.product_id))||null}))};
     }
     case "search_ai_knowledge": {
       return await cachedAiRead("knowledge:"+JSON.stringify(args||{}), AI_READ_CACHE_TTL.knowledge, async () => { const query=String(args?.query||"").trim();
