@@ -372,7 +372,7 @@ const AI_SYSTEM_PROMPT = [
   "When listing products, present each product naturally with its exact name, current price, available stock, and retrieved description/facts. Preserve the retrieved information exactly in meaning; do not invent, omit, or reinterpret factual product data.",
   "For cart, reservation, order, and action results, explain what happened in plain customer-facing language and clearly state the next customer-controlled step. Never imply that payment was started or completed unless the payment system itself confirms it.",
   "If you cannot confirm an answer from Beulah Foods data, offer to connect the customer with Beulah Foods support. Use the get_support_contact tool so the WhatsApp contact comes from the current public footer; never invent a phone number.",
-  "Keep answers concise, professional, customer-friendly, and directly useful. Never expose internal error messages; give a simple customer-facing explanation when a tool fails."
+  "Keep answers concise, professional, customer-friendly, and directly useful. For one customer request, write one coherent answer only. If several tools or searches were used to verify the same product or fact, synthesize the findings once instead of repeating the same product, sentence, paragraph, price, stock, or description. Never expose internal error messages; give a simple customer-facing explanation when a tool fails."
 ].join(" ");
 
 const AI_TOOLS = [
@@ -1164,6 +1164,46 @@ async function storeAiMessage(env,conversationId,role,content){
   await db.prepare("UPDATE ai_conversations SET updated_at=? WHERE conversation_id=?").bind(now,conversationId).run();
   await db.prepare(`DELETE FROM ai_messages WHERE conversation_id=? AND id NOT IN (SELECT id FROM ai_messages WHERE conversation_id=? ORDER BY id DESC LIMIT ${AI_MAX_STORED_MESSAGES})`).bind(conversationId,conversationId).run();
 }
+
+function cleanCustomerAiText(value) {
+  let text=String(value||"").replace(/\r\n/g,"\n").trim();
+  text=text
+    .replace(/^\\s*[-*+]\\s+/gm,"")
+    .replace(/^\\s*\\d+[.)]\\s+/gm,"")
+    .replace(/\\*\\*(.*?)\\*\\*/g,"$1")
+    .replace(/__(.*?)__/g,"$1")
+    .replace(/\\*([^*\\n]+)\\*/g,"$1")
+    .replace(/\\x60([^\\x60]+)\\x60/g,"$1")
+    .replace(/^\\s*[-*_]{3,}\\s*$/gm,"")
+    .replace(/^\\s*\\|?[-: ]+\\|[-: |]+\\s*$/gm,"")
+    .replace(/\\|/g," ")
+    .replace(/[ \\t]{2,}/g," ")
+    .replace(/\\n{3,}/g,"\\n\\n")
+    .trim();
+
+  const paragraphs=text.split(/\\n{2,}/).map(item=>item.trim()).filter(Boolean);
+  const seenParagraphs=new Set();
+  const uniqueParagraphs=[];
+  for(const paragraph of paragraphs){
+    const key=normalizeProductText(paragraph);
+    if(!key || seenParagraphs.has(key)) continue;
+    seenParagraphs.add(key);
+    uniqueParagraphs.push(paragraph);
+  }
+  text=uniqueParagraphs.join("\\n\\n");
+
+  const sentences=text.split(/(?<=[.!?])\\s+/);
+  const seenSentences=new Set();
+  const uniqueSentences=[];
+  for(const sentence of sentences){
+    const key=normalizeProductText(sentence);
+    if(!key || seenSentences.has(key)) continue;
+    seenSentences.add(key);
+    uniqueSentences.push(sentence);
+  }
+  return uniqueSentences.join(" ").replace(/\\s{2,}/g," ").trim();
+}
+
 async function runAiChat(request, env) {
   const startedAt=Date.now();
   let body;
@@ -1269,7 +1309,7 @@ async function runAiChat(request, env) {
     }
   }
 
-  const text = String(result?.text || "").trim();
+  const text = cleanCustomerAiText(result?.text || "");
 
   if (!text) throw new Error("AI_EMPTY_RESPONSE");
 
