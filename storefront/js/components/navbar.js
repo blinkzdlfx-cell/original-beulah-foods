@@ -68,7 +68,7 @@ function ensureStyles() {
 export function initHeader(navEl) {
   if (!navEl) return;
   ensureStyles();
-  import("./aiAssistant.js").then(({ initAiAssistant }) => initAiAssistant()).catch(() => {});
+  import("./aiAssistant.js?v=slash-1").then(({ initAiAssistant }) => initAiAssistant()).catch(error => console.error("Beulah AI failed to initialize", error));
 
   let lastSession = null;
   let resolved = false;
