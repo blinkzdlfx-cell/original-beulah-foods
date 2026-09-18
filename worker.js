@@ -864,17 +864,72 @@ function getFastAiResponse(message) {
   return null;
 }
 
-async function getFooterSupport(env) {
+async function getFooterHelpSource(env) {
   const response = await env.ASSETS.fetch(new Request("https://assets.local/storefront/index.html"));
   if (!response.ok) return { available: false };
+
   const html = await response.text();
-  const footerStart = html.toLowerCase().indexOf("<footer");
-  const footerEnd = html.toLowerCase().indexOf("</footer>", footerStart);
+  const lower = html.toLowerCase();
+  const footerStart = lower.indexOf("<footer");
+  const footerEnd = lower.indexOf("</footer>", footerStart);
   const footer = footerStart >= 0 && footerEnd > footerStart ? html.slice(footerStart, footerEnd + 9) : html;
+
   const whatsapp = footer.match(/https?:\/\/(?:api\.)?wa\.me\/([0-9]+)/i);
   const phone = footer.match(/href=["']tel:\+?([0-9+\s().-]{7,})["']/i);
+  const email = footer.match(/href=["']mailto:([^"']+)["']/i);
+
+  const text = stripHtml(footer);
   const number = whatsapp?.[1] || phone?.[1]?.replace(/\D/g, "") || "";
-  return number ? { available: true, number, whatsapp_url: "https://wa.me/" + number } : { available: false };
+
+  return {
+    available: Boolean(text),
+    footer_text: text.slice(0, 5000),
+    whatsapp_number: whatsapp?.[1] || "",
+    whatsapp_url: whatsapp?.[1] ? "https://wa.me/" + whatsapp[1] : "",
+    phone_number: phone?.[1] || "",
+    email: email?.[1] || "",
+  };
+}
+
+async function getFooterSupport(env) {
+  const source = await getFooterHelpSource(env);
+  if (!source.available) return { available: false };
+  return {
+    available: true,
+    number: source.whatsapp_number || source.phone_number.replace(/\D/g, ""),
+    whatsapp_url: source.whatsapp_url || "",
+  };
+}
+
+async function composeAiHelpResponse(env) {
+  const source = await getFooterHelpSource(env);
+  if (!source.available) throw new Error("FOOTER_CONTACT_UNAVAILABLE");
+
+  const messages = [
+    {
+      role: "system",
+      content: [
+        "You are composing a short customer-facing Beulah Foods contact/help response.",
+        "Use only the verified storefront footer source supplied below.",
+        "You may reorganize and phrase the information naturally so it is easy to read.",
+        "Never change, abbreviate, normalize, invent, or reinterpret the verified address, phone number, WhatsApp number, email address, company name, or location names.",
+        "Do not add information that is not present in the footer source.",
+        "Do not use Markdown tables, decorative Markdown, asterisks, pipe characters, or database-style formatting.",
+        "Return one polished response only.",
+        "Verified footer source:",
+        JSON.stringify(source),
+      ].join("\n"),
+    },
+    {
+      role: "user",
+      content: "Provide the current Beulah Foods contact and location information from the footer.",
+    },
+  ];
+
+  const result = await runAiWithFallback(env, messages, { useTools: false });
+  const text = cleanCustomerAiText(result?.text || "");
+  if (!text) throw new Error("AI_EMPTY_RESPONSE");
+  return { text, provider: result.provider, model: result.model };
 }
 
 
@@ -1053,14 +1108,14 @@ async function runAiProvider(env, provider, messages, { useTools = true, tools =
   return normalizeProviderResponse(provider, response);
 }
 
-async function runAiWithFallback(env, messages) {
+async function runAiWithFallback(env, messages, { useTools = true } = {}) {
   let lastError = null;
 
   for (const provider of providerOrder(env)) {
     if (!providerEnabled(env, provider)) continue;
 
     try {
-      const result = await runAiProvider(env, provider, messages, { useTools: true });
+      const result = await runAiProvider(env, provider, messages, { useTools });
 
       if (result?.text || result?.toolCalls?.length) {
         return {
@@ -1075,24 +1130,26 @@ async function runAiWithFallback(env, messages) {
       console.error("AI provider with tools failed", provider, error);
       lastError = error;
 
-      // A plain customer message must still work if a provider rejects its
-      // tool schema. Retry the same provider without tools before falling
-      // through to another configured provider.
-      try {
-        const result = await runAiProvider(env, provider, messages, { useTools: false });
+      if (useTools) {
+        // A plain customer message must still work if a provider rejects its
+        // tool schema. Retry the same provider without tools before falling
+        // through to another configured provider.
+        try {
+          const result = await runAiProvider(env, provider, messages, { useTools: false });
 
-        if (result?.text) {
-          return {
-            ...result,
-            provider,
-            model: providerModel(env, provider),
-          };
+          if (result?.text) {
+            return {
+              ...result,
+              provider,
+              model: providerModel(env, provider),
+            };
+          }
+
+          throw new Error("AI_EMPTY_PROVIDER_RESPONSE");
+        } catch (retryError) {
+          console.error("AI provider without tools failed", provider, retryError);
+          lastError = retryError;
         }
-
-        throw new Error("AI_EMPTY_PROVIDER_RESPONSE");
-      } catch (retryError) {
-        console.error("AI provider without tools failed", provider, retryError);
-        lastError = retryError;
       }
     }
   }
@@ -1237,6 +1294,19 @@ async function runAiChat(request, env) {
     })) || [];
 
   await storeAiMessage(env, conversation.conversationId, "user", message);
+
+  if (message.toLowerCase() === "/help") {
+    const help = await composeAiHelpResponse(env);
+    await storeAiMessage(env, conversation.conversationId, "assistant", help.text);
+    const headers = conversation.setCookie ? { "Set-Cookie": conversation.setCookie } : {};
+    return json({
+      conversation_id: conversation.conversationId,
+      message: help.text,
+      actions: [],
+      provider: help.provider,
+      model: help.model,
+    }, 200, headers);
+  }
 
   const fastResponse = getFastAiResponse(message);
   if (fastResponse) {
