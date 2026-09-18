@@ -1323,7 +1323,8 @@ async function runAiChat(request, env) {
 
   await storeAiMessage(env, conversation.conversationId, "user", message);
 
-  if (message.toLowerCase() === "/help") {
+  const contactQuestion = /\b(where|location|located|address|contact|reach|phone|whatsapp|email)\b/i.test(message);
+  if (message.toLowerCase() === "/help" || contactQuestion) {
     const help = await composeAiHelpResponse(env);
     await storeAiMessage(env, conversation.conversationId, "assistant", help.text);
     const headers = conversation.setCookie ? { "Set-Cookie": conversation.setCookie } : {};
