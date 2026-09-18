@@ -17,3 +17,6 @@ include = ["admin/**", "storefront/**"]
 
 [observability]
 enabled = true
+
+[ai]
+binding = "AI"
