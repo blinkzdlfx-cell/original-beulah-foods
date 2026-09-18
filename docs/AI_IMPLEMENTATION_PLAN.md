@@ -29,13 +29,27 @@
 - [x] Checkout link exposed after assistant-created pending orders.
 - [ ] Browser acceptance tests on Home, Shop, Product, Cart and Account.
 
-## Phase 4 — hardening
+## Phase 4 — interaction layer and performance
+- [x] Deterministic fast-path responses for common greetings/capability questions.
+- [x] Short-lived caching for slowly changing read-only knowledge.
+- [x] Keep stock, cart, orders, reservations, and payment state fresh.
+- [x] Safe allowlisted navigation actions rendered as clickable storefront links.
+- [x] Action-specific progress messaging for cart, reservation, cancellation, review, and navigation intents.
+- [x] Dynamic WhatsApp support contact read from the public storefront footer.
+- [x] Support link generated only from a validated WhatsApp contact.
+- [x] Remove temporary AI diagnostic endpoint/configuration after debugging.
+
+## Phase 5 — hardening
 - [ ] Durable rate limiting.
 - [ ] Abuse/cost monitoring.
 - [ ] Explicit mutation confirmation UX.
 - [ ] Automated security tests.
 - [ ] Semantic/vector retrieval if the knowledge corpus requires it.
 - [ ] OpenRouter/AI Gateway fallback.
+
+## Verification status
+
+The interaction/performance layer is implemented in TEST code. A live TinyFish smoke test confirmed the storefront can send an AI message successfully after the latest Worker changes. Full acceptance testing of navigation actions, cart/reservation actions, dynamic support contact, cache behavior, and all security boundaries remains pending.
 
 ## Release gate
 
