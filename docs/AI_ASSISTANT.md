@@ -2,31 +2,43 @@
 
 ## Status
 
-Initial implementation in the TEST repository: `blinkzdlfx-cell/original-beulah-foods`.
-
-The assistant is a controlled customer-facing AI layer. It is not a general database agent and it is not an admin assistant.
+Initial customer assistant implementation is in the TEST repository: `blinkzdlfx-cell/original-beulah-foods`.
 
 ## Architecture
 
 Storefront chat UI -> Cloudflare Worker `/api/ai/chat` -> allowlisted tools -> Supabase / storefront policy assets.
 
-Workers AI is bound as `env.AI`. The initial model is `@cf/zai-org/glm-4.7-flash`, which Cloudflare documents as supporting function calling and multi-turn tool calling.
+Workers AI is bound as `env.AI`. Initial model: `@cf/zai-org/glm-4.7-flash`.
 
 ## Customer capabilities
 
-Read:
+The assistant can read:
 - active products
 - current prices
 - available stock after active reservations
 - active categories
+- published How To Order instructions
+- published product cooking/preparation guides
+- admin-curated active AI knowledge
 - current Privacy Policy and Terms of Service
 - the customer's browser cart
 - the customer's own orders
 
-Actions:
+It can perform controlled actions:
 - add/set/remove browser-cart items
 - create a pending order and its existing 15-minute reservation
 - cancel a pending reservation
+
+## Knowledge system
+
+Two knowledge sources are intentionally separated:
+
+1. **How To database** — structured customer education for ordering and product preparation.
+2. **AI Knowledge database** — admin-curated free-form knowledge for FAQs, cooking information, delivery rules, product facts, ordering details, policy explanations, and general store information.
+
+The AI retrieves both through explicit Worker tools. It does not receive arbitrary database access.
+
+The AI Knowledge admin page is `/admin/knowledge.html`.
 
 ## Explicit exclusions
 
@@ -40,8 +52,6 @@ The assistant cannot:
 
 ## Source of truth
 
-Supabase remains authoritative for catalogue, stock, reservations, orders and payments. The AI is an interface over those systems, not a replacement for them.
-
-The browser cart remains localStorage-first. Cart mutations are therefore validated by the Worker and returned as explicit client actions.
+Supabase remains authoritative for catalogue, stock, reservations, orders, payments, How To content, and AI knowledge. The AI is an interface over those systems, not a replacement for them.
 
 No persistent AI conversation table is introduced in this phase.
