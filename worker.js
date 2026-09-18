@@ -366,6 +366,7 @@ const AI_SYSTEM_PROMPT = [
   "Do not use Markdown tables, pipe characters as table separators, separator rows such as --- or |---|, or decorative Markdown such as **bold** and *italics*. Use short paragraphs and simple bullet points only when they improve readability.",
   "When listing products, present each product naturally with its exact name, current price, available stock, and retrieved description/facts. Preserve the retrieved information exactly in meaning; do not invent, omit, or reinterpret factual product data.",
   "For cart, reservation, order, and action results, explain what happened in plain customer-facing language and clearly state the next customer-controlled step. Never imply that payment was started or completed unless the payment system itself confirms it.",
+  "If you cannot confirm an answer from Beulah Foods data, offer to connect the customer with Beulah Foods support. Use the get_support_contact tool so the WhatsApp contact comes from the current public footer; never invent a phone number.",
   "Keep answers concise, professional, customer-friendly, and directly useful. Never expose internal error messages; give a simple customer-facing explanation when a tool fails."
 ].join(" ");
 
@@ -383,7 +384,8 @@ const AI_TOOLS = [
   {name:"update_cart",description:"Validate availability and return a client action to set a browser-cart quantity.",parameters:{type:"object",properties:{product_id:{type:"string"},quantity:{type:"integer",minimum:1,maximum:50}},required:["product_id","quantity"],additionalProperties:false}},
   {name:"remove_from_cart",description:"Return a client action to remove a product from the browser cart.",parameters:{type:"object",properties:{product_id:{type:"string"}},required:["product_id"],additionalProperties:false}},
   {name:"create_order",description:"Create a pending order and its existing 15-minute stock reservation from the authenticated customer's browser cart. Use only when the authenticated customer explicitly asks to place/confirm the order or explicitly asks to reserve the stock after reviewing the order. Payment is not started.",parameters:{type:"object",properties:{promo_code:{type:"string"}},additionalProperties:false}},
-  {name:"cancel_reservation",description:"Cancel the authenticated customer's pending order stock reservation. Use when the customer explicitly asks to cancel/release the reservation. Requires the reservation's order ID.",parameters:{type:"object",properties:{order_id:{type:"string"}},required:["order_id"],additionalProperties:false}}
+  {name:"cancel_reservation",description:"Cancel the authenticated customer's pending order stock reservation. Use when the customer explicitly asks to cancel/release the reservation. Requires the reservation's order ID.",parameters:{type:"object",properties:{order_id:{type:"string"}},required:["order_id"],additionalProperties:false}}  {name:"get_support_contact",description:"Read the current customer support WhatsApp contact from the public storefront footer.",parameters:{type:"object",properties:{},additionalProperties:false}},
+
 ];
 
 function aiError(message, code="AI_TOOL_ERROR") { return {ok:false,code,message}; }
@@ -608,6 +610,7 @@ async function executeAiTool(env,auth,toolName,args,context) {
       if(!response.ok) throw new Error(typeof data==="object"&&data?.message?data.message:"RESERVATION_CANCELLATION_FAILED");
       return {cancelled:true,order_id:orderId,action:{type:"reservation_cancelled",order_id:orderId}};
     }
+    case "get_support_contact": return await getFooterSupport(env);
     default: throw new Error("UNKNOWN_AI_TOOL");
   }
 }
@@ -633,6 +636,42 @@ function conversationCookie(id,maxAge=604800){
   return AI_CONVERSATION_COOKIE+"="+encodeURIComponent(id)+"; Max-Age="+maxAge+"; Path=/api/ai; Secure; HttpOnly; SameSite=Lax";
 }
 function aiDb(env){if(!env.AI_DB)throw new Error("AI_HISTORY_DB_NOT_CONFIGURED");return env.AI_DB;}
+
+const AI_READ_CACHE = new Map();
+const AI_READ_CACHE_TTL = { categories: 300000, how_to: 300000, policies: 300000, knowledge: 120000 };
+
+async function cachedAiRead(key, ttl, loader) {
+  const now = Date.now();
+  const cached = AI_READ_CACHE.get(key);
+  if (cached && cached.expiresAt > now) return cached.value;
+  const value = await loader();
+  AI_READ_CACHE.set(key, { value, expiresAt: now + ttl });
+  if (AI_READ_CACHE.size > 100) {
+    for (const [cacheKey, entry] of AI_READ_CACHE) if (entry.expiresAt <= now) AI_READ_CACHE.delete(cacheKey);
+  }
+  return value;
+}
+
+function getFastAiResponse(message) {
+  const normalized = String(message || "").trim().toLowerCase().replace(/[!?.,]+$/g, "").trim();
+  if (/^(hi|hello|hey|good morning|good afternoon|good evening|howdy)$/.test(normalized)) return "Hi. I’m Beulah AI, the Beulah Foods assistant. I can help with products, orders, cooking, delivery, your cart, and checkout.";
+  if (/^(what can you do|what do you do|how can you help|help)$/.test(normalized)) return "I can help you find Beulah Foods products, check current availability, manage your cart, review orders, reserve stock before payment, explain cooking guides, and answer Beulah Foods policy and delivery questions.";
+  return null;
+}
+
+async function getFooterSupport(env) {
+  const response = await env.ASSETS.fetch(new Request("https://assets.local/storefront/index.html"));
+  if (!response.ok) return { available: false };
+  const html = await response.text();
+  const footerStart = html.toLowerCase().indexOf("<footer");
+  const footerEnd = html.toLowerCase().indexOf("</footer>", footerStart);
+  const footer = footerStart >= 0 && footerEnd > footerStart ? html.slice(footerStart, footerEnd + 9) : html;
+  const whatsapp = footer.match(/https?:\/\/(?:api\.)?wa\.me\/([0-9]+)/i);
+  const phone = footer.match(/href=["']tel:\+?([0-9+\s().-]{7,})["']/i);
+  const number = whatsapp?.[1] || phone?.[1]?.replace(/\D/g, "") || "";
+  return number ? { available: true, number, whatsapp_url: "https://wa.me/" + number } : { available: false };
+}
+
 
 async function getConversation(env,id,customerId){
   const db=aiDb(env);
