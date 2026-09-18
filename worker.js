@@ -724,8 +724,12 @@ async function callOpenAiCompatible(env,provider,payload){
 }
 async function runAiProvider(env,provider,messages){
   const model=providerModel(env,provider);
-  const payload={messages,tools:provider==="cloudflare"?AI_TOOLS:openAiCompatibleTools(),tool_choice:"auto",temperature:0.2,max_tokens:900};
-  const response=provider==="cloudflare"?await env.AI.run(model,payload):await callOpenAiCompatible(env,provider,{model,...payload});
+  const payload=provider==="cloudflare"
+    ? {messages,tools:AI_TOOLS,temperature:0.2,max_tokens:900}
+    : {model,messages,tools:openAiCompatibleTools(),tool_choice:"auto",temperature:0.2,max_tokens:900};
+  const response=provider==="cloudflare"
+    ? await env.AI.run(model,payload)
+    : await callOpenAiCompatible(env,provider,payload);
   return normalizeProviderResponse(provider,response);
 }
 async function runAiWithFallback(env,messages){
