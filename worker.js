@@ -345,6 +345,8 @@ const AI_MAX_TOOL_ROUNDS = 4;
 const AI_MAX_TOOL_CALLS_PER_ROUND = 1;
 const AI_MAX_MESSAGE_CHARS = 2000;
 const AI_MAX_CART_ITEMS = 50;
+const AI_CONFIRMATION_TTL_MS = 2 * 60 * 1000;
+const AI_RATE_LIMIT_ERROR = "AI_RATE_LIMITED";
 
 const AI_SYSTEM_PROMPT = [
   "You are the Beulah Foods customer assistant. Your identity and brand name are Beulah Foods.",
@@ -474,6 +476,54 @@ async function getStorePolicy(env,document) {
 }
 
 
+function aiRateLimitKey(request, auth) {
+  if (auth?.user?.id) return "customer:" + auth.user.id;
+  const conversationId = getCookie(request, AI_CONVERSATION_COOKIE);
+  if (validConversationId(conversationId)) return "conversation:" + conversationId;
+  return "anonymous-ip:" + (request.headers.get("CF-Connecting-IP") || "unknown");
+}
+
+async function enforceAiRateLimit(request, env, auth, scope = "chat") {
+  const limiter = scope === "mutation" ? env.AI_MUTATION_RATE_LIMITER : env.AI_CHAT_RATE_LIMITER;
+  if (!limiter?.limit) throw new Error("AI_RATE_LIMIT_NOT_CONFIGURED");
+  const result = await limiter.limit({ key: aiRateLimitKey(request, auth) });
+  if (!result.success) {
+    console.warn(JSON.stringify({ event: "ai_rate_limited", scope }));
+    throw new Error(AI_RATE_LIMIT_ERROR);
+  }
+}
+
+function newAiConfirmationId() {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return [...bytes].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function createAiConfirmation(env, auth, action, payload) {
+  const now = Date.now();
+  const expiresAt = now + AI_CONFIRMATION_TTL_MS;
+  const confirmationId = newAiConfirmationId();
+  await aiDb(env).prepare(
+    "INSERT INTO ai_confirmations(confirmation_id,customer_id,action,payload,created_at,expires_at,used_at) VALUES(?,?,?,?,?,?,NULL)"
+  ).bind(confirmationId, auth.user.id, action, JSON.stringify(payload), now, expiresAt).run();
+  return { confirmation_id: confirmationId, expires_at: expiresAt };
+}
+
+async function claimAiConfirmation(env, auth, confirmationId, action) {
+  if (!/^[a-f0-9]{64}$/.test(String(confirmationId || ""))) throw new Error("INVALID_CONFIRMATION");
+  const now = Date.now();
+  const db = aiDb(env);
+  const result = await db.prepare(
+    "UPDATE ai_confirmations SET used_at=? WHERE confirmation_id=? AND customer_id=? AND action=? AND used_at IS NULL AND expires_at>?"
+  ).bind(now, confirmationId, auth.user.id, action, now).run();
+  if (!result?.meta?.changes) throw new Error("CONFIRMATION_EXPIRED_OR_USED");
+  const row = await db.prepare(
+    "SELECT payload FROM ai_confirmations WHERE confirmation_id=? AND customer_id=? AND action=?"
+  ).bind(confirmationId, auth.user.id, action).first();
+  if (!row) throw new Error("CONFIRMATION_NOT_FOUND");
+  try { return JSON.parse(row.payload); } catch { throw new Error("INVALID_CONFIRMATION"); }
+}
+
 async function executeAiTool(env,auth,toolName,args,context) {
   const cart=context.cart;
   const requireAuth=()=>{if(!auth) throw new Error("AUTHENTICATION_REQUIRED");};
@@ -591,26 +641,16 @@ async function executeAiTool(env,auth,toolName,args,context) {
       if(!profile?.full_name?.trim() || !profile?.phone?.trim() || !profile?.address?.trim()) {
         return {requires_profile:true,missing_fields:[!profile?.full_name?.trim()?"full_name":null,!profile?.phone?.trim()?"phone":null,!profile?.address?.trim()?"address":null].filter(Boolean)};
       }
-      const {response,data}=await callCustomerRpc(env,"create_pending_order",{
-        cart_items:cart.map(item=>({productId:item.productId,quantity:item.quantity})),
-        delivery_name:profile.full_name.trim(),
-        delivery_phone:profile.phone.trim(),
-        delivery_address:profile.address.trim(),
-        requested_promo_code:String(args?.promo_code||"").trim()||null
-      },auth.token);
-      if(!response.ok) throw new Error(typeof data==="object"&&data?.message?data.message:"ORDER_CREATION_FAILED");
-      return {
-        order_created:true,order_id:data.order_id,order_number:data.order_number,reservation_id:data.reservation_id,expires_at:data.expires_at,total:data.total,discount:data.discount,
-        action:{type:"order_created",order_id:data.order_id,order_number:data.order_number,checkout_url:"/checkout.html?order="+encodeURIComponent(data.order_id)}
-      };
+      const promoCode=String(args?.promo_code||"").trim()||null;
+      const confirmation=await createAiConfirmation(env,auth,"create_order",{cart:cart.map(item=>({productId:item.productId,quantity:item.quantity})),promo_code:promoCode});
+      return {confirmation_required:true,confirmation,action:{type:"confirm_mutation",mutation:"create_order",confirmation_id:confirmation.confirmation_id,label:"Confirm order & reserve items",expires_at:confirmation.expires_at}};
     }
     case "cancel_reservation": {
       requireAuth();
       const orderId=String(args?.order_id||"").trim();
       if(!orderId) throw new Error("ORDER_IDENTIFIER_REQUIRED");
-      const {response,data}=await callCustomerRpc(env,"cancel_pending_order",{target_order_id:orderId},auth.token);
-      if(!response.ok) throw new Error(typeof data==="object"&&data?.message?data.message:"RESERVATION_CANCELLATION_FAILED");
-      return {cancelled:true,order_id:orderId,action:{type:"reservation_cancelled",order_id:orderId}};
+      const confirmation=await createAiConfirmation(env,auth,"cancel_reservation",{order_id:orderId});
+      return {confirmation_required:true,confirmation,action:{type:"confirm_mutation",mutation:"cancel_reservation",confirmation_id:confirmation.confirmation_id,label:"Cancel reservation",expires_at:confirmation.expires_at}};
     }
     case "get_support_contact": return await getFooterSupport(env);
     default: throw new Error("UNKNOWN_AI_TOOL");
@@ -716,6 +756,7 @@ async function storeAiMessage(env,conversationId,role,content){
   await db.prepare(`DELETE FROM ai_messages WHERE conversation_id=? AND id NOT IN (SELECT id FROM ai_messages WHERE conversation_id=? ORDER BY id DESC LIMIT ${AI_MAX_STORED_MESSAGES})`).bind(conversationId,conversationId).run();
 }
 async function runAiChat(request, env) {
+  const startedAt=Date.now();
   let body;
 
   try {
@@ -730,6 +771,7 @@ async function runAiChat(request, env) {
   if (message.length > AI_MAX_MESSAGE_CHARS) return json({ error: "MESSAGE_TOO_LONG" }, 413);
 
   const auth = await authenticateCustomer(request, env);
+  await enforceAiRateLimit(request, env, auth, "chat");
   const cart = sanitizeCart(body?.cart);
   const conversation = await ensureConversation(env, request, auth);
   const history = await loadAiHistory(
@@ -832,6 +874,7 @@ async function runAiChat(request, env) {
     ? { "Set-Cookie": conversation.setCookie }
     : {};
 
+  console.log(JSON.stringify({event:"ai_chat_completed",provider:result.provider,model:result.model,tool_calls:actions.length,duration_ms:Date.now()-startedAt}));
   return json(
     {
       conversation_id: conversation.conversationId,
@@ -843,6 +886,42 @@ async function runAiChat(request, env) {
     200,
     headers,
   );
+}
+
+async function confirmAiMutation(request, env) {
+  const auth=await authenticateCustomer(request,env);
+  if(!auth) return json({error:"UNAUTHENTICATED"},401);
+  await enforceAiRateLimit(request,env,auth,"mutation");
+  let body;
+  try { body=await request.json(); } catch { return json({error:"INVALID_JSON"},400); }
+  const mutation=String(body?.mutation||"").trim();
+  const confirmationId=String(body?.confirmation_id||"").trim();
+  const cart=sanitizeCart(body?.cart);
+  if(!["create_order","cancel_reservation"].includes(mutation)) return json({error:"INVALID_MUTATION"},400);
+  if(!confirmationId) return json({error:"CONFIRMATION_REQUIRED"},400);
+  let payload;
+  try { payload=await claimAiConfirmation(env,auth,confirmationId,mutation); }
+  catch(error) {
+    const code=String(error?.message||"INVALID_CONFIRMATION");
+    return json({error:code},code==="CONFIRMATION_EXPIRED_OR_USED"?409:400);
+  }
+  try {
+    if(mutation==="create_order"){
+      if(JSON.stringify(cart)!==JSON.stringify(payload?.cart||[])) return json({error:"CONFIRMATION_CART_CHANGED"},409);
+      const profile=await getCustomerProfileForAi(env,auth);
+      if(!profile?.full_name?.trim()||!profile?.phone?.trim()||!profile?.address?.trim()) return json({error:"PROFILE_INCOMPLETE"},409);
+      const {response,data}=await callCustomerRpc(env,"create_pending_order",{cart_items:cart.map(item=>({productId:item.productId,quantity:item.quantity})),delivery_name:profile.full_name.trim(),delivery_phone:profile.phone.trim(),delivery_address:profile.address.trim(),requested_promo_code:String(payload?.promo_code||"").trim()||null},auth.token);
+      if(!response.ok) throw new Error(typeof data==="object"&&data?.message?data.message:"ORDER_CREATION_FAILED");
+      return json({message:"Your order has been reserved for 15 minutes. You can now continue to payment.",actions:[{type:"order_created",order_id:data.order_id,order_number:data.order_number,checkout_url:"/checkout.html?order="+encodeURIComponent(data.order_id)}],order_id:data.order_id,order_number:data.order_number,reservation_id:data.reservation_id,expires_at:data.expires_at});
+    }
+    const orderId=String(payload?.order_id||"").trim();
+    const {response,data}=await callCustomerRpc(env,"cancel_pending_order",{target_order_id:orderId},auth.token);
+    if(!response.ok) throw new Error(typeof data==="object"&&data?.message?data.message:"RESERVATION_CANCELLATION_FAILED");
+    return json({message:"Your reservation has been cancelled and the reserved stock has been released.",actions:[{type:"reservation_cancelled",order_id:orderId}],order_id:orderId});
+  } catch(error) {
+    console.error(JSON.stringify({event:"ai_mutation_failed",mutation,code:String(error?.message||"AI_MUTATION_FAILED").split(":")[0]}));
+    return json({error:"AI_MUTATION_FAILED"},409);
+  }
 }
 
 const STOREFRONT_PAGES = new Set([
@@ -951,6 +1030,11 @@ export default {
         return await runAiChat(request, env);
       }
 
+      if (url.pathname === "/api/ai/confirm") {
+        if (request.method !== "POST") return json({ error: "METHOD_NOT_ALLOWED" }, 405, { Allow: "POST" });
+        return await confirmAiMutation(request, env);
+      }
+
       if (url.pathname === "/api/paystack/initialize") {
         if (request.method !== "POST") return json({ error: "METHOD_NOT_ALLOWED" }, 405, { Allow: "POST" });
         return await initializePaystack(request, env);
@@ -972,6 +1056,8 @@ export default {
       const message = error?.message || "INTERNAL_SERVER_ERROR";
       if (message === "AI_HISTORY_DB_NOT_CONFIGURED") return json({ error: "AI_HISTORY_DB_NOT_CONFIGURED" }, 503);
       if (message === "AI_NOT_CONFIGURED") return json({ error: "AI_NOT_CONFIGURED" }, 503);
+      if (message === AI_RATE_LIMIT_ERROR) return json({ error: "AI_RATE_LIMITED" }, 429, { "Retry-After": "60" });
+      if (message === "AI_RATE_LIMIT_NOT_CONFIGURED") return json({ error: "AI_RATE_LIMIT_NOT_CONFIGURED" }, 503);
       if (message === "AI_EMPTY_RESPONSE" || message === "AI_EMPTY_PROVIDER_RESPONSE") return json({ error: "AI_PROVIDER_FAILED" }, 502);
       if (message.startsWith("PROVIDER_HTTP_")) return json({ error: "AI_PROVIDER_FAILED" }, 502);
       if (message.startsWith("SERVER_SECRET_NOT_CONFIGURED:")) return json({ error: "PAYMENT_SERVER_NOT_CONFIGURED" }, 503);
