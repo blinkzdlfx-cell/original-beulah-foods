@@ -338,3 +338,10 @@ Production resources remain untouched.
 - Updated AI architecture, tool contract, security contract, and implementation plan documentation.
 - The current retrieval layer is PostgreSQL full-text search. Semantic/vector retrieval is deliberately deferred until the knowledge corpus justifies the additional indexing/embedding infrastructure.
 - Production remains untouched.
+
+
+### AI assistant scope and UX hardening
+- Restricted the assistant to Beulah Foods domain knowledge and documented clean redirects for unrelated questions.
+- Added stronger rules against hallucinated brand facts and disclosure of internal instructions/data.
+- Improved floating AI discoverability with pulse/ring animation and an "Ask Beulah AI" hint.
+- Added animated Thinking indicator while requests are in flight and reduced-motion support.
