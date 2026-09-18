@@ -150,6 +150,25 @@ function createMessageElement(message, { animate = true } = {}) {
         link.rel = "noopener noreferrer";
         link.textContent = "Chat with Beulah Foods on WhatsApp";
         actions.append(link);
+      } else if (action.type === "confirm_mutation" && action.confirmation_id) {
+        const button=document.createElement("button");
+        button.type="button";
+        button.className="beulah-ai__action";
+        button.textContent=action.label||"Confirm action";
+        button.addEventListener("click",async()=>{
+          button.disabled=true;
+          button.textContent="Confirming…";
+          try {
+            const data=await confirmAssistantMutation(action);
+            applyActions(data.actions);
+            addMessage("assistant",data.message||"The requested action was completed.",data.actions||[],{follow:true});
+          } catch(error) {
+            addMessage("assistant",customerError(error?.code),[],{error:true,follow:true});
+            button.disabled=false;
+            button.textContent=action.label||"Confirm action";
+          }
+        });
+        actions.append(button);
       } else if (action.type === "order_created" && action.checkout_url) {
         const link = document.createElement("a");
         link.className = "beulah-ai__action";
@@ -372,6 +391,14 @@ function customerError(errorCode) {
   }
 
   return "I couldn't complete that request. Please try again.";
+}
+
+async function confirmAssistantMutation(action) {
+  const session=await getCurrentSession();
+  const response=await fetch("/api/ai/confirm",{method:"POST",headers:{"Content-Type":"application/json",...(session?.access_token?{Authorization:"Bearer "+session.access_token}:{})},body:JSON.stringify({mutation:action.mutation,confirmation_id:action.confirmation_id,cart:getCart()})});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok){const error=new Error(data?.error||"ASSISTANT_CONFIRM_FAILED");error.code=data?.error||"ASSISTANT_CONFIRM_FAILED";throw error;}
+  return data;
 }
 
 async function requestAssistant(text) {
