@@ -296,8 +296,7 @@ async function verifyPaystackSignature(rawBody, signature, secret) {
     new TextEncoder().encode(secret),
     { name: "HMAC", hash: "SHA-512" },
     false,
-    ["sign"],
-  );
+    ["sign"],  );
   const digest = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawBody));
   const expected = bytesToHex(digest);
   if (expected.length !== signature.length) return false;
@@ -342,10 +341,9 @@ async function handleWebhook(request, env) {
 }
 
 
-const AI_MODEL = "@cf/zai-org/glm-4.7-flash";
 const AI_MAX_HISTORY = 12;
 const AI_MAX_TOOL_ROUNDS = 4;
-const AI_MAX_TOOL_CALLS_PER_ROUND = 4;
+const AI_MAX_TOOL_CALLS_PER_ROUND = 1;
 const AI_MAX_MESSAGE_CHARS = 2000;
 const AI_MAX_CART_ITEMS = 50;
 
@@ -687,63 +685,184 @@ async function cleanupAiHistory(env){
   await db.prepare("DELETE FROM ai_conversations WHERE updated_at<?").bind(cutoff).run();
 }
 
-function providerOrder(env){
-  const configured=String(env.AI_PROVIDER_ORDER||"").split(",").map(v=>v.trim().toLowerCase()).filter(Boolean);
-  return [...new Set(configured.length?configured:AI_PROVIDER_DEFAULT_ORDER)].filter(v=>AI_PROVIDER_DEFAULT_ORDER.includes(v));
+function providerOrder(env) {
+  const configured = String(env.AI_PROVIDER_ORDER || "")
+    .split(",")
+    .map(value => value.trim().toLowerCase())
+    .filter(Boolean);
+
+  return [...new Set(configured.length ? configured : AI_PROVIDER_DEFAULT_ORDER)]
+    .filter(provider => AI_PROVIDER_DEFAULT_ORDER.includes(provider));
 }
-function providerModel(env,provider){
-  if(provider==="cloudflare")return String(env.AI_CLOUDFLARE_MODEL||AI_DEFAULT_MODEL).trim();
-  if(provider==="openrouter")return String(env.AI_OPENROUTER_MODEL||"").trim();
-  if(provider==="huggingface")return String(env.AI_HUGGINGFACE_MODEL||"").trim();
+
+function providerModel(env, provider) {
+  if (provider === "cloudflare") return String(env.AI_CLOUDFLARE_MODEL || AI_DEFAULT_MODEL).trim();
+  if (provider === "openrouter") return String(env.AI_OPENROUTER_MODEL || "").trim();
+  if (provider === "huggingface") return String(env.AI_HUGGINGFACE_MODEL || "").trim();
   return "";
 }
-function providerEnabled(env,provider){
-  if(provider==="cloudflare")return Boolean(env.AI?.run&&providerModel(env,provider));
-  if(provider==="openrouter")return Boolean(env.OPENROUTER_API_KEY&&providerModel(env,provider));
-  if(provider==="huggingface")return Boolean(env.HUGGINGFACE_API_KEY&&providerModel(env,provider));
+
+function providerEnabled(env, provider) {
+  if (provider === "cloudflare") return Boolean(env.AI && typeof env.AI.run === "function" && providerModel(env, provider));
+  if (provider === "openrouter") return Boolean(env.OPENROUTER_API_KEY && providerModel(env, provider));
+  if (provider === "huggingface") return Boolean(env.HUGGINGFACE_API_KEY && providerModel(env, provider));
   return false;
 }
-function openAiCompatibleTools(){return AI_TOOLS.map(tool=>({type:"function",function:tool}));}
-function normalizeProviderResponse(provider,response){
-  const choice=response?.choices?.[0],message=choice?.message||null;
-  const toolCalls=Array.isArray(response?.tool_calls)?response.tool_calls:(Array.isArray(message?.tool_calls)?message.tool_calls:[]);
-  return{message,text:String(message?.content||response?.response||"").trim(),toolCalls};
+
+function openAiCompatibleTools() {
+  return AI_TOOLS.map(tool => ({
+    type: "function",
+    function: tool,
+  }));
 }
-async function callOpenAiCompatible(env,provider,payload){
-  const endpoint=provider==="openrouter"?"https://openrouter.ai/api/v1/chat/completions":"https://router.huggingface.co/v1/chat/completions";
-  const key=provider==="openrouter"?env.OPENROUTER_API_KEY:env.HUGGINGFACE_API_KEY;
-  const headers={"Content-Type":"application/json",Authorization:"Bearer "+key};
-  if(provider==="openrouter"){headers["HTTP-Referer"]="https://original-beulah-foods.blinkzdlf.workers.dev";headers["X-Title"]="Beulah Foods AI";}
-  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),25000);
-  try{
-    const response=await fetch(endpoint,{method:"POST",headers,body:JSON.stringify(payload),signal:controller.signal});
-    const raw=await response.text(); let data=null; try{data=raw?JSON.parse(raw):null;}catch{}
-    if(!response.ok)throw new Error("PROVIDER_HTTP_"+response.status);
-    return data;
-  }finally{clearTimeout(timer);}
-}
-async function runAiProvider(env,provider,messages){
-  const model=providerModel(env,provider);
-  const payload=provider==="cloudflare"
-    ? {messages,tools:AI_TOOLS,temperature:0.2,max_tokens:900}
-    : {model,messages,tools:openAiCompatibleTools(),tool_choice:"auto",temperature:0.2,max_tokens:900};
-  const response=provider==="cloudflare"
-    ? await env.AI.run(model,payload)
-    : await callOpenAiCompatible(env,provider,payload);
-  return normalizeProviderResponse(provider,response);
-}
-async function runAiWithFallback(env,messages){
-  let lastError=null;
-  for(const provider of providerOrder(env)){
-    if(!providerEnabled(env,provider))continue;
-    try{
-      const result=await runAiProvider(env,provider,messages);
-      if(!result||(!result.text&&!result.toolCalls.length))throw new Error("AI_EMPTY_PROVIDER_RESPONSE");
-      return{...result,provider,model:providerModel(env,provider)};
-    }catch(error){lastError=error;console.error("AI provider failed",provider,error);}
+
+function normalizeProviderResponse(provider, response) {
+  if (provider === "cloudflare") {
+    return {
+      message: null,
+      text: String(response?.response || "").trim(),
+      toolCalls: Array.isArray(response?.tool_calls) ? response.tool_calls : [],
+    };
   }
-  throw lastError||new Error("AI_NOT_CONFIGURED");
+
+  const choice = response?.choices?.[0];
+  const message = choice?.message || null;
+
+  return {
+    message,
+    text: String(message?.content || "").trim(),
+    toolCalls: Array.isArray(message?.tool_calls) ? message.tool_calls : [],
+  };
 }
+
+async function callOpenAiCompatible(env, provider, payload) {
+  const endpoint = provider === "openrouter"
+    ? "https://openrouter.ai/api/v1/chat/completions"
+    : "https://router.huggingface.co/v1/chat/completions";
+
+  const key = provider === "openrouter"
+    ? env.OPENROUTER_API_KEY
+    : env.HUGGINGFACE_API_KEY;
+
+  const headers = {
+    "Content-Type": "application/json",
+    Authorization: "Bearer " + key,
+  };
+
+  if (provider === "openrouter") {
+    headers["HTTP-Referer"] = "https://original-beulah-foods.blinkzdlfx.workers.dev";
+    headers["X-Title"] = "Beulah Foods AI";
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 25000);
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+
+    const raw = await response.text();
+    let data = null;
+
+    try {
+      data = raw ? JSON.parse(raw) : null;
+    } catch {
+      data = null;
+    }
+
+    if (!response.ok) {
+      throw new Error("PROVIDER_HTTP_" + response.status);
+    }
+
+    return data;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function runAiProvider(env, provider, messages, { useTools = true } = {}) {
+  const model = providerModel(env, provider);
+
+  if (provider === "cloudflare") {
+    const payload = {
+      messages,
+      temperature: 0.2,
+      max_tokens: 900,
+    };
+
+    if (useTools) payload.tools = AI_TOOLS;
+
+    const response = await env.AI.run(model, payload);
+    return normalizeProviderResponse(provider, response);
+  }
+
+  const payload = {
+    model,
+    messages,
+    temperature: 0.2,
+    max_tokens: 900,
+  };
+
+  if (useTools) {
+    payload.tools = openAiCompatibleTools();
+    payload.tool_choice = "auto";
+  }
+
+  const response = await callOpenAiCompatible(env, provider, payload);
+  return normalizeProviderResponse(provider, response);
+}
+
+async function runAiWithFallback(env, messages) {
+  let lastError = null;
+
+  for (const provider of providerOrder(env)) {
+    if (!providerEnabled(env, provider)) continue;
+
+    try {
+      const result = await runAiProvider(env, provider, messages, { useTools: true });
+
+      if (result?.text || result?.toolCalls?.length) {
+        return {
+          ...result,
+          provider,
+          model: providerModel(env, provider),
+        };
+      }
+
+      throw new Error("AI_EMPTY_PROVIDER_RESPONSE");
+    } catch (error) {
+      console.error("AI provider with tools failed", provider, error);
+      lastError = error;
+
+      // A plain customer message must still work if a provider rejects its
+      // tool schema. Retry the same provider without tools before falling
+      // through to another configured provider.
+      try {
+        const result = await runAiProvider(env, provider, messages, { useTools: false });
+
+        if (result?.text) {
+          return {
+            ...result,
+            provider,
+            model: providerModel(env, provider),
+          };
+        }
+
+        throw new Error("AI_EMPTY_PROVIDER_RESPONSE");
+      } catch (retryError) {
+        console.error("AI provider without tools failed", provider, retryError);
+        lastError = retryError;
+      }
+    }
+  }
+
+  throw lastError || new Error("AI_NOT_CONFIGURED");
+}
+
 function normalizeToolCalls(result){
   return(result?.toolCalls||[]).slice(0,AI_MAX_TOOL_CALLS_PER_ROUND).map(call=>{
     const name=String(call?.name||call?.function?.name||"").trim();
@@ -752,30 +871,26 @@ function normalizeToolCalls(result){
     return{id:String(call?.id||("call_"+crypto.randomUUID())),name,args,raw:call};
   }).filter(call=>call.name);
 }
-function assistantToolMessage(result,toolCalls){
-  if(result.provider==="cloudflare"){
-    return{
-      role:"assistant",
-      content:JSON.stringify(toolCalls.map(c=>({
-        name:c.name,
-        arguments:c.args
-      })))
+function assistantToolMessage(result, toolCalls) {
+  const toolCall = toolCalls[0];
+
+  if (result.provider === "cloudflare") {
+    return {
+      role: "assistant",
+      content: JSON.stringify({
+        name: toolCall.name,
+        arguments: toolCall.args,
+      }),
     };
   }
-  return{role:"assistant",content:result.message?.content||null,tool_calls:toolCalls.map(c=>c.raw)};
+
+  return {
+    role: "assistant",
+    content: result.message?.content || null,
+    tool_calls: toolCalls.map(call => call.raw),
+  };
 }
-function normalizeAiHistory(history){
-  if(!Array.isArray(history))return[];
-  return history.slice(-AI_MAX_HISTORY).map(message=>{
-    const role=message?.role==="assistant"?"assistant":"user";
-    const content=String(message?.content||"").slice(0,AI_MAX_MESSAGE_CHARS);
-    return content?{role,content}:null;
-  }).filter(Boolean);
-}
-function extractAiText(response){
-  const choice=response?.choices?.[0];
-  return String(choice?.message?.content||response?.response||"").trim();
-}
+
 async function getAiHistoryRoute(request,env){
   const auth=await authenticateCustomer(request,env);
   const id=getCookie(request,AI_CONVERSATION_COOKIE);
@@ -784,42 +899,127 @@ async function getAiHistoryRoute(request,env){
   if(!history)return json({conversation_id:null,messages:[]});
   return json({conversation_id:id,messages:history.messages.map(m=>({role:m.role,content:m.content}))});
 }
-async function runAiChat(request,env){
-  let body;try{body=await request.json();}catch{return json({error:"INVALID_JSON"},400);}
-  const message=String(body?.message||"").trim();
-  if(!message)return json({error:"MESSAGE_REQUIRED"},400);
-  if(message.length>AI_MAX_MESSAGE_CHARS)return json({error:"MESSAGE_TOO_LONG"},413);
-  const auth=await authenticateCustomer(request,env),cart=sanitizeCart(body?.cart);
-  const conversation=await ensureConversation(env,request,auth);
-  const history=await loadAiHistory(env,conversation.conversationId,auth?.user?.id||null);
-  const priorMessages=history?.messages?.slice(-AI_MAX_HISTORY).map(m=>({role:m.role,content:m.content}))||[];
-  await storeAiMessage(env,conversation.conversationId,"user",message);
-  const messages=[
-    {role:"system",content:AI_SYSTEM_PROMPT},
-    {role:"system",content:JSON.stringify({signed_in:Boolean(auth),current_cart_items:cart.length})},
-    ...priorMessages,{role:"user",content:message}
+async function runAiChat(request, env) {
+  let body;
+
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "INVALID_JSON" }, 400);
+  }
+
+  const message = String(body?.message || "").trim();
+
+  if (!message) return json({ error: "MESSAGE_REQUIRED" }, 400);
+  if (message.length > AI_MAX_MESSAGE_CHARS) return json({ error: "MESSAGE_TOO_LONG" }, 413);
+
+  const auth = await authenticateCustomer(request, env);
+  const cart = sanitizeCart(body?.cart);
+  const conversation = await ensureConversation(env, request, auth);
+  const history = await loadAiHistory(
+    env,
+    conversation.conversationId,
+    auth?.user?.id || null,
+  );
+
+  const priorMessages = history?.messages
+    ?.slice(-AI_MAX_HISTORY)
+    .map(item => ({
+      role: item.role,
+      content: item.content,
+    })) || [];
+
+  await storeAiMessage(env, conversation.conversationId, "user", message);
+
+  const modelMessages = [
+    { role: "system", content: AI_SYSTEM_PROMPT },
+    {
+      role: "system",
+      content: JSON.stringify({
+        signed_in: Boolean(auth),
+        current_cart_items: cart.length,
+      }),
+    },
+    ...priorMessages,
+    { role: "user", content: message },
   ];
-  const actions=[];let result=null;
-  for(let round=0;round<AI_MAX_TOOL_ROUNDS;round++){
-    result=await runAiWithFallback(env,messages);
-    const toolCalls=normalizeToolCalls(result);
-    if(!toolCalls.length)break;
-    messages.push(assistantToolMessage(result,toolCalls));
-    for(const toolCall of toolCalls){
+
+  const actions = [];
+  let result = null;
+
+  for (let round = 0; round < AI_MAX_TOOL_ROUNDS; round += 1) {
+    result = await runAiWithFallback(env, modelMessages);
+    const toolCalls = normalizeToolCalls(result);
+
+    if (!toolCalls.length) break;
+
+    modelMessages.push(assistantToolMessage(result, toolCalls));
+
+    for (const toolCall of toolCalls) {
       let toolResult;
-      try{toolResult=await executeAiTool(env,auth,toolCall.name,toolCall.args,{cart});}
-      catch(error){toolResult=aiError(error?.message||"The requested operation could not be completed.",String(error?.message||"AI_TOOL_ERROR").split(":")[0]);}
-      if(toolResult?.action)actions.push(toolResult.action);
-      messages.push(result.provider==="cloudflare"
-        ? {role:"tool",content:JSON.stringify(toolResult)}
-        : {role:"tool",tool_call_id:toolCall.id,name:toolCall.name,content:JSON.stringify(toolResult)});
+
+      try {
+        toolResult = await executeAiTool(
+          env,
+          auth,
+          toolCall.name,
+          toolCall.args,
+          { cart },
+        );
+      } catch (error) {
+        const rawCode = String(error?.message || "AI_TOOL_ERROR");
+        toolResult = aiError(
+          "The requested operation could not be completed.",
+          rawCode.split(":")[0],
+        );
+      }
+
+      if (toolResult?.action) actions.push(toolResult.action);
+
+      if (result.provider === "cloudflare") {
+        modelMessages.push({
+          role: "tool",
+          content: JSON.stringify(toolResult),
+        });
+      } else {
+        modelMessages.push({
+          role: "tool",
+          tool_call_id: toolCall.id,
+          name: toolCall.name,
+          content: JSON.stringify(toolResult),
+        });
+      }
     }
   }
-  const text=result?.text||"";
-  if(!text)throw new Error("AI_EMPTY_RESPONSE");
-  await storeAiMessage(env,conversation.conversationId,"assistant",text);
-  return json({conversation_id:conversation.conversationId,message:text,actions,provider:result.provider,model:result.model},200,conversation.setCookie?{"Set-Cookie":conversation.setCookie}:{});
+
+  const text = String(result?.text || "").trim();
+
+  if (!text) throw new Error("AI_EMPTY_RESPONSE");
+
+  await storeAiMessage(
+    env,
+    conversation.conversationId,
+    "assistant",
+    text,
+  );
+
+  const headers = conversation.setCookie
+    ? { "Set-Cookie": conversation.setCookie }
+    : {};
+
+  return json(
+    {
+      conversation_id: conversation.conversationId,
+      message: text,
+      actions,
+      provider: result.provider,
+      model: result.model,
+    },
+    200,
+    headers,
+  );
 }
+
 const STOREFRONT_PAGES = new Set([
   "login",
   "signup",
@@ -896,7 +1096,6 @@ function assetRequest(request, env) {
     storefrontAssetUrl.pathname = `/storefront${path}`;
     return env.ASSETS.fetch(new Request(storefrontAssetUrl, request));
   }
-
   return env.ASSETS.fetch(request);
 }
 
@@ -948,6 +1147,8 @@ export default {
       const message = error?.message || "INTERNAL_SERVER_ERROR";
       if (message === "AI_HISTORY_DB_NOT_CONFIGURED") return json({ error: "AI_HISTORY_DB_NOT_CONFIGURED" }, 503);
       if (message === "AI_NOT_CONFIGURED") return json({ error: "AI_NOT_CONFIGURED" }, 503);
+      if (message === "AI_EMPTY_RESPONSE" || message === "AI_EMPTY_PROVIDER_RESPONSE") return json({ error: "AI_PROVIDER_FAILED" }, 502);
+      if (message.startsWith("PROVIDER_HTTP_")) return json({ error: "AI_PROVIDER_FAILED" }, 502);
       if (message.startsWith("SERVER_SECRET_NOT_CONFIGURED:")) return json({ error: "PAYMENT_SERVER_NOT_CONFIGURED" }, 503);
       return json({ error: "INTERNAL_SERVER_ERROR" }, 500);
     }
