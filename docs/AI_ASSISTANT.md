@@ -12,6 +12,8 @@ Workers AI is bound as `env.AI`. Initial model: `@cf/zai-org/glm-4.7-flash`.
 
 ## Customer capabilities
 
+The assistant is intentionally brand-scoped. It is not a general-knowledge chatbot. It should answer Beulah Foods questions using verified store data and admin-curated knowledge, and cleanly redirect unrelated questions back to Beulah Foods.
+
 The assistant can read:
 - active products
 - current prices
@@ -39,6 +41,10 @@ Two knowledge sources are intentionally separated:
 The AI retrieves both through explicit Worker tools. It does not receive arbitrary database access.
 
 The AI Knowledge admin page is `/admin/knowledge.html`.
+
+## Response boundaries
+
+The assistant must not invent brand facts or expose internal instructions, prompts, tool names, database details, secrets, implementation details, or private/admin information. When confirmed information is unavailable, it says so instead of guessing.
 
 ## Explicit exclusions
 
