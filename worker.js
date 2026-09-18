@@ -479,7 +479,7 @@ async function executeAiTool(env,auth,toolName,args,context) {
 
   switch(toolName) {
     case "get_how_to": {
-      const type=String(args?.type||"").trim();
+      return await cachedAiRead("howto:"+JSON.stringify(args||{}), AI_READ_CACHE_TTL.how_to, async () => { const type=String(args?.type||"").trim();
       const limit=Math.min(5,Math.max(1,Number.parseInt(args?.limit,10)||5));
       if(type==="order"){
         const {response,data}=await supabaseRequest(env,"/rest/v1/how_to_order?select=id,title,description,is_active,how_to_order_steps(id,step_number,title,description)&is_active=eq.true&limit=1");
@@ -503,22 +503,23 @@ async function executeAiTool(env,auth,toolName,args,context) {
       const {response,data}=await supabaseRequest(env,"/rest/v1/how_to_guides?"+params.toString());
       if(!response.ok || !Array.isArray(data)) throw new Error("HOW_TO_COOKING_LOOKUP_FAILED");
       const byId=new Map(products.map(p=>[String(p.id),p]));
-      return {guides:data.map(g=>({...g,product:byId.get(String(g.product_id))||null}))};    }
+      return {guides:data.map(g=>({...g,product:byId.get(String(g.product_id))||null}))}; });
+    }
     case "search_ai_knowledge": {
-      const query=String(args?.query||"").trim();
+      return await cachedAiRead("knowledge:"+JSON.stringify(args||{}), AI_READ_CACHE_TTL.knowledge, async () => { const query=String(args?.query||"").trim();
       if(!query) throw new Error("KNOWLEDGE_QUERY_REQUIRED");
       const {response,data}=await supabaseRequest(env,"/rest/v1/rpc/search_ai_knowledge",{
         method:"POST",
         body:{p_query:query,p_limit:Math.min(8,Math.max(1,Number.parseInt(args?.limit,10)||6))}
       });
       if(!response.ok || !Array.isArray(data)) throw new Error("KNOWLEDGE_SEARCH_FAILED");
-      return {results:data};
+      return {results:data}; });
     }
     case "get_categories": {
-      const query=new URLSearchParams({select:"id,name,slug,description",is_active:"eq.true",order:"sort_order.asc,name.asc"});
+      return await cachedAiRead("categories", AI_READ_CACHE_TTL.categories, async () => { const query=new URLSearchParams({select:"id,name,slug,description",is_active:"eq.true",order:"sort_order.asc,name.asc"});
       const {response,data}=await supabaseRequest(env,"/rest/v1/categories?"+query.toString());
       if(!response.ok || !Array.isArray(data)) throw new Error("CATEGORY_LOOKUP_FAILED");
-      return {categories:data};
+      return {categories:data}; });
     }
     case "search_products":
       return {products:await getActiveProducts(env,{query:args?.query,categorySlug:args?.category_slug,limit:args?.limit})};
@@ -528,14 +529,14 @@ async function executeAiTool(env,auth,toolName,args,context) {
       return {product:products[0]||null};
     }
     case "get_store_policies":
-      return await getStorePolicy(env,String(args?.document||""));
+      return await cachedAiRead("policy:"+String(args?.document||""), AI_READ_CACHE_TTL.policies, () => getStorePolicy(env,String(args?.document||"")));
     case "get_my_cart": {
       const items=[];
       for(const item of cart) {
         const result=await getActiveProducts(env,{productId:item.productId,limit:1});
         items.push({product_id:item.productId,quantity:item.quantity,product:result[0]||null});
       }
-      return {items};
+      return {items,action:{type:"navigate",target:"cart"}};
     }
     case "get_my_orders": {
       requireAuth();
@@ -546,7 +547,7 @@ async function executeAiTool(env,auth,toolName,args,context) {
       });
       const {response,data}=await supabaseRequest(env,"/rest/v1/orders?"+query.toString(),{accessToken:auth.token});
       if(!response.ok || !Array.isArray(data)) throw new Error("ORDER_LOOKUP_FAILED");
-      return {orders:data};
+      return {orders:data,action:{type:"navigate",target:"orders"}};
     }
     case "get_my_order": {
       requireAuth();
@@ -559,7 +560,7 @@ async function executeAiTool(env,auth,toolName,args,context) {
       else query.set("order_number","eq."+String(args.order_number).trim());
       const {response,data}=await supabaseRequest(env,"/rest/v1/orders?"+query.toString(),{accessToken:auth.token});
       if(!response.ok || !Array.isArray(data)) throw new Error("ORDER_LOOKUP_FAILED");
-      return {order:data[0]||null};
+      return {order:data[0]||null,action:data[0]?{type:"navigate",target:"orders"}:null};
     }
     case "add_to_cart":
     case "update_cart": {
@@ -745,6 +746,13 @@ async function runAiChat(request, env) {
 
   await storeAiMessage(env, conversation.conversationId, "user", message);
 
+  const fastResponse = getFastAiResponse(message);
+  if (fastResponse) {
+    await storeAiMessage(env, conversation.conversationId, "assistant", fastResponse);
+    const headers = conversation.setCookie ? { "Set-Cookie": conversation.setCookie } : {};
+    return json({ conversation_id: conversation.conversationId, message: fastResponse, actions: [], provider: "deterministic", model: null }, 200, headers);
+  }
+
   const modelMessages = [
     { role: "system", content: AI_SYSTEM_PROMPT },
     {
@@ -789,6 +797,7 @@ async function runAiChat(request, env) {
       }
 
       if (toolResult?.action) actions.push(toolResult.action);
+      if (toolResult?.available && toolResult?.whatsapp_url) actions.push({type:"support",channel:"whatsapp",url:toolResult.whatsapp_url});
 
       if (result.provider === "cloudflare") {
         modelMessages.push({
