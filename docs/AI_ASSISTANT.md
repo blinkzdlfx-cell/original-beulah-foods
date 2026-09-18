@@ -61,3 +61,33 @@ The assistant cannot:
 Supabase remains authoritative for catalogue, stock, reservations, orders, payments, How To content, and AI knowledge. The AI is an interface over those systems, not a replacement for them.
 
 No persistent AI conversation table is introduced in this phase.
+
+
+## Durable chat history — Cloudflare D1
+
+The assistant no longer treats browser localStorage as the conversation source of truth. Conversation messages are stored in Cloudflare D1 through the Worker boundary.
+
+- D1 stores only customer-visible user/assistant messages.
+- Supabase remains the source of truth for products, stock, accounts, orders, reservations, How To content, policies, and AI knowledge.
+- The Worker uses an HttpOnly, Secure, SameSite cookie containing a cryptographically random conversation identifier.
+- Signed-in conversations are associated with the authenticated Supabase customer ID. A guest conversation can be claimed when the customer later authenticates.
+- The browser does not submit conversation history to the model endpoint; the Worker loads the authoritative recent history from D1.
+- The Worker retains at most 100 messages per conversation and loads the most recent 12 for model context.
+- A scheduled Worker cleanup removes conversations whose last activity is older than seven days.
+- The Clear action deletes the current D1 conversation and rotates the conversation cookie.
+
+### Provider routing
+
+The Worker now has a provider abstraction with this configurable order:
+
+1. Cloudflare Workers AI
+2. OpenRouter
+3. Hugging Face
+
+A provider is eligible only when its model is configured and its required credential/binding is available. The router falls back to the next eligible provider when a provider request fails. Tool-calling compatibility remains a configuration requirement for any fallback model used for actions.
+
+Provider credentials are server-side only. They must never be committed to the repository or exposed to storefront JavaScript.
+
+### Required D1 setup
+
+The repository contains d1/migrations/0001_ai_chat.sql. The Cloudflare D1 database itself must be created in the TEST Cloudflare account, and its real database ID must be added to the D1 binding in wrangler.toml. The binding name expected by the Worker is AI_DB.
