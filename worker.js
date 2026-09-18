@@ -341,6 +341,116 @@ async function handleWebhook(request, env) {
   }
 }
 
+
+const AI_MODEL = "@cf/zai-org/glm-4.7-flash";
+const AI_MAX_HISTORY = 12;
+const AI_MAX_TOOL_ROUNDS = 4;
+const AI_MAX_MESSAGE_CHARS = 2000;
+const AI_MAX_CART_ITEMS = 50;
+
+const AI_SYSTEM_PROMPT = [
+  "You are the Beulah Foods customer assistant.",
+  "Use tools for current product, stock, order, cart, and policy information. Never invent a price, stock level, product, order status, delivery rule, or policy.",
+  "Only use a customer's own order data. Never reveal another customer's information.",
+  "You may modify the customer's browser cart through controlled cart tools. Never claim a cart changed unless the tool succeeded.",
+  "You may create a pending order/reservation when the customer explicitly asks to place the order and the required delivery profile is complete. Payment remains user-controlled.",
+  "You may cancel a pending reservation when the customer explicitly asks.",
+  "Never initialize Paystack or claim that a payment succeeded.",
+  "Do not modify products, prices, stock, categories, customer profiles, payments, or administrative data. Do not delete orders. Do not run arbitrary SQL.",
+  "If an action needs authentication, say that the customer must log in. If delivery details are missing, explain which profile fields are required.",
+  "Keep responses concise and grounded in tool results."
+].join(" ");
+
+const AI_TOOLS = [
+  {name:"get_categories",description:"List active Beulah Foods product categories.",parameters:{type:"object",properties:{},additionalProperties:false}},
+  {name:"search_products",description:"Search active Beulah Foods products by name, description, or category slug. Returns current price and available stock.",parameters:{type:"object",properties:{query:{type:"string"},category_slug:{type:"string"},limit:{type:"integer",minimum:1,maximum:8}},additionalProperties:false}},
+  {name:"get_product",description:"Get one active product by product ID or slug, including current price and available stock.",parameters:{type:"object",properties:{product_id:{type:"string"},slug:{type:"string"}},additionalProperties:false}},
+  {name:"get_store_policies",description:"Read the current Privacy Policy or Terms of Service.",parameters:{type:"object",properties:{document:{type:"string",enum:["privacy","terms"]}},required:["document"],additionalProperties:false}},
+  {name:"get_my_cart",description:"Read and enrich the customer's current browser cart.",parameters:{type:"object",properties:{},additionalProperties:false}},
+  {name:"get_my_orders",description:"List the authenticated customer's own recent orders.",parameters:{type:"object",properties:{limit:{type:"integer",minimum:1,maximum:10}},additionalProperties:false}},
+  {name:"get_my_order",description:"Get one of the authenticated customer's own orders by order ID or order number.",parameters:{type:"object",properties:{order_id:{type:"string"},order_number:{type:"string"}},additionalProperties:false}},
+  {name:"add_to_cart",description:"Validate availability and return a client action to add a product to the browser cart.",parameters:{type:"object",properties:{product_id:{type:"string"},quantity:{type:"integer",minimum:1,maximum:50}},required:["product_id","quantity"],additionalProperties:false}},
+  {name:"update_cart",description:"Validate availability and return a client action to set a browser-cart quantity.",parameters:{type:"object",properties:{product_id:{type:"string"},quantity:{type:"integer",minimum:1,maximum:50}},required:["product_id","quantity"],additionalProperties:false}},
+  {name:"remove_from_cart",description:"Return a client action to remove a product from the browser cart.",parameters:{type:"object",properties:{product_id:{type:"string"}},required:["product_id"],additionalProperties:false}},
+  {name:"create_order",description:"Create a pending order and its existing 15-minute reservation from the authenticated customer's browser cart. Payment is not started.",parameters:{type:"object",properties:{promo_code:{type:"string"}},additionalProperties:false}},
+  {name:"cancel_reservation",description:"Cancel the authenticated customer's pending order reservation.",parameters:{type:"object",properties:{order_id:{type:"string"}},required:["order_id"],additionalProperties:false}}
+];
+
+function aiError(message, code="AI_TOOL_ERROR") { return {ok:false,code,message}; }
+
+function sanitizeCart(items) {
+  if (!Array.isArray(items)) return [];
+  return items.slice(0, AI_MAX_CART_ITEMS).map(item => ({
+    productId:String(item?.productId || "").trim(),
+    quantity:Number.parseInt(item?.quantity,10)
+  })).filter(item => item.productId && Number.isFinite(item.quantity) && item.quantity > 0 && item.quantity <= 50);
+}
+
+async function getAvailableStock(env, productIds) {
+  const ids=[...new Set(productIds.map(String).filter(Boolean))];
+  if (!ids.length) return new Map();
+  const query=new URLSearchParams({
+    select:"product_id,quantity,reservations!inner(status,expires_at)",
+    product_id:"in.("+ids.join(",")+")",
+    "reservations.status":"eq.active"
+  });
+  const {response,data}=await supabaseRequest(env,"/rest/v1/reservation_items?"+query.toString());
+  if (!response.ok || !Array.isArray(data)) throw new Error("STOCK_LOOKUP_FAILED");
+  const reserved=new Map();
+  for (const row of data) {
+    if (Date.parse(row?.reservations?.expires_at || "") <= Date.now()) continue;
+    const id=String(row.product_id);
+    reserved.set(id,(reserved.get(id)||0)+Number(row.quantity||0));
+  }
+  return reserved;
+}
+
+async function getActiveProducts(env,{productId,slug,query,categorySlug,limit=8}={}) {
+  const safeLimit=Math.min(8,Math.max(1,Number.parseInt(limit,10)||8));
+  const params=new URLSearchParams({
+    select:"id,category_id,name,slug,description,price,stock_quantity,image_path,is_featured,categories(name,slug)",
+    is_active:"eq.true",
+    order:"sort_order.asc,name.asc",
+    limit:String(safeLimit)
+  });
+  if (productId) params.set("id","eq."+String(productId).trim());
+  if (slug) params.set("slug","eq."+String(slug).trim());
+  if (categorySlug) params.set("categories.slug","eq."+String(categorySlug).trim());
+  if (query) {
+    const text=String(query).trim().replace(/[%(),]/g," ").slice(0,80);
+    if (text) params.set("or","(name.ilike.*"+text+"*,description.ilike.*"+text+"*)");
+  }
+  const {response,data}=await supabaseRequest(env,"/rest/v1/products?"+params.toString());
+  if (!response.ok || !Array.isArray(data)) throw new Error("PRODUCT_LOOKUP_FAILED");
+  const reserved=await getAvailableStock(env,data.map(row=>row.id));
+  return data.map(row=>({
+    id:row.id,name:row.name,slug:row.slug,description:row.description,
+    price_ngn:Number(row.price),
+    available_stock:Math.max(0,Number(row.stock_quantity||0)-Number(reserved.get(String(row.id))||0)),
+    category:row.categories?{name:row.categories.name,slug:row.categories.slug}:null,
+    is_featured:Boolean(row.is_featured)
+  }));
+}
+
+async function getCustomerProfileForAi(env,auth) {
+  if (!auth) return null;
+  const query=new URLSearchParams({select:"id,full_name,phone,address",id:"eq."+auth.user.id,limit:"1"});
+  const {response,data}=await supabaseRequest(env,"/rest/v1/customer_profiles?"+query.toString(),{accessToken:auth.token});
+  if (!response.ok || !Array.isArray(data)) return null;
+  return data[0] || null;
+}
+
+function stripHtml(html) {
+  return String(html||"").replace(/<script[\\s\\S]*?<\\/script>/gi," ").replace(/<style[\\s\\S]*?<\\/style>/gi," ").replace(/<[^>]+>/g," ").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&").replace(/&quot;/gi,'"').replace(/&#39;/gi,"'").replace(/\\s+/g," ").trim();
+}
+
+async function getStorePolicy(env,document) {
+  const path=document==="privacy"?"/storefront/privacy-policy.html":"/storefront/terms-of-service.html";
+  const response=await env.ASSETS.fetch(new Request("https://assets.local"+path));
+  if (!response.ok) throw new Error("POLICY_DOCUMENT_UNAVAILABLE");
+  return {document,text:stripHtml(await response.text()).slice(0,7000)};
+}
+
 const STOREFRONT_PAGES = new Set([
   "login",
   "signup",
