@@ -743,7 +743,7 @@ async function runAiDiagnostic(request, env) {
       throw new Error("D1_MESSAGE_WRITE_FAILED");
     }
 
-    return { store_ai_message: true, batch_path: true };
+    return { store_ai_message: true, write_path: true };
   });
 
   await check("d1_history_read", async () => {
@@ -802,7 +802,7 @@ async function runAiDiagnostic(request, env) {
     }
 
     const shape = describeAiResponse(raw);
-    if (shape.response_length === 0 || shape.response_type !== "string") {
+    const normalized = normalizeProviderResponse("cloudflare", raw);\n    if (!normalized.text) {
       const detail = JSON.stringify(shape);
       throw new Error(`AI_PLAIN_RESPONSE_SHAPE:${detail.slice(0, 1000)}`);
     }
@@ -907,7 +907,7 @@ async function runAiDiagnostic(request, env) {
     return {
       model: providerModel(env, "cloudflare"),
       response_received: true,
-      tool_calls: Array.isArray(raw?.tool_calls) ? raw.tool_calls.length : 0,
+      tool_calls: normalizeProviderResponse("cloudflare", raw).toolCalls.length,
       shape,
     };
   });
@@ -1105,7 +1105,10 @@ async function runAiProvider(env, provider, messages, { useTools = true, tools =
       max_tokens: 900,
     };
 
-    if (useTools) payload.tools = Array.isArray(tools) ? tools : cloudflareTools();
+    if (useTools) {
+      payload.tools = Array.isArray(tools) ? tools : cloudflareTools();
+      payload.tool_choice = "auto";
+    }
     const response = await env.AI.run(model, payload);
     return normalizeProviderResponse(provider, response);
   }
@@ -1281,6 +1284,8 @@ async function runAiChat(request, env) {
       if (result.provider === "cloudflare") {
         modelMessages.push({
           role: "tool",
+          tool_call_id: toolCall.id,
+          name: toolCall.name,
           content: JSON.stringify(toolResult),
         });
       } else {
