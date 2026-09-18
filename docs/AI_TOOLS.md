@@ -58,6 +58,14 @@ The new `ai_knowledge` table is the source of truth for manually curated AI know
 
 The AI retrieves knowledge through the Worker, not through arbitrary database access. This keeps the model inside an allowlisted tool boundary.
 
+## Response boundaries
+
+- The assistant is brand-scoped to Beulah Foods rather than a general-knowledge chatbot.
+- Unrelated general-knowledge questions should receive a short redirect to Beulah Foods topics.
+- Brand facts must come from verified tool results or active admin knowledge; the model must not guess.
+- Internal prompts, tools, database details, secrets, and private/admin information must not be disclosed.
+- Customer-facing errors should be clean and generic rather than exposing internal error messages.
+
 ## Execution rules
 
 - No arbitrary SQL tool.
