@@ -213,10 +213,11 @@ export function initAiAssistant() {
         <button class="beulah-ai__close" type="button" aria-label="Close assistant">×</button>
       </header>
       <div class="beulah-ai__notice">Beulah AI can make mistakes. For important information, please confirm with Beulah Foods.</div>
-      <div class="beulah-ai__messages" aria-live="polite"></div>
-      <button class="beulah-ai__scroll-down" type="button" aria-label="Scroll to latest message" title="Scroll to latest message">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
+      <div class="beulah-ai__messages" aria-live="polite">
+        <button class="beulah-ai__scroll-down" type="button" aria-label="Scroll to latest message" title="Scroll to latest message">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
       <form class="beulah-ai__form">
         <textarea class="beulah-ai__input" rows="1" maxlength="2000" placeholder="Ask about Beulah Foods…"></textarea>
         <button class="beulah-ai__send" type="submit">Send</button>
