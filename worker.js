@@ -277,8 +277,19 @@ async function verifyPaystack(request, env) {
   const orderId = result?.order_id || payment.order_id;
   const order = await loadOrderSummary(env, orderId);
 
+  let emailSent = null;
   if (result?.status === "successful") {
-    await sendSuccessfulPaymentEmails(env, orderId, koboToNgn(transaction.amount), reference);
+    try {
+      await sendSuccessfulPaymentEmails(env, orderId, koboToNgn(transaction.amount), reference);
+      emailSent = true;
+    } catch (error) {
+      emailSent = false;
+      console.error(JSON.stringify({
+        event: "payment_transaction_email_failed",
+        order_id: orderId,
+        code: String(error?.message || "EMAIL_SEND_FAILED").split(":")[0],
+      }));
+    }
   }
 
   return json({
@@ -287,6 +298,7 @@ async function verifyPaystack(request, env) {
     order_number: order?.order_number || null,
     provider_status: transaction.status,
     idempotent: Boolean(result?.idempotent),
+    email_sent: emailSent,
   });
 }
 
@@ -338,10 +350,21 @@ async function handleWebhook(request, env) {
       provider_status: data.status,
       metadata: event,
     });
+    let emailSent = null;
     if (result?.status === "successful") {
-      await sendSuccessfulPaymentEmails(env, result.order_id, koboToNgn(data.amount), reference);
+      try {
+        await sendSuccessfulPaymentEmails(env, result.order_id, koboToNgn(data.amount), reference);
+        emailSent = true;
+      } catch (error) {
+        emailSent = false;
+        console.error(JSON.stringify({
+          event: "payment_transaction_email_failed",
+          order_id: result.order_id,
+          code: String(error?.message || "EMAIL_SEND_FAILED").split(":")[0],
+        }));
+      }
     }
-    return json({ received: true, processed: true, status: result?.status || "processed" });
+    return json({ received: true, processed: true, status: result?.status || "processed", email_sent: emailSent });
   } catch (error) {
     console.error("Paystack webhook finalization failed", error);
     return json({ error: "PAYMENT_FINALIZATION_FAILED" }, 502);
