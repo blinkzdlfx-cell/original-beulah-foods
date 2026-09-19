@@ -18,6 +18,7 @@ required = ["PAYSTACK_SECRET_KEY", "SUPABASE_SECRET_KEY"]
 directory = "."
 binding = "ASSETS"
 html_handling = "none"
+not_found_handling = "404-page"
 run_worker_first = true
 
 [observability]
