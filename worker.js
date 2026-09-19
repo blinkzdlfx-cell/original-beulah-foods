@@ -1539,6 +1539,22 @@ async function confirmAiMutation(request, env) {
   }
 }
 
+const LEGACY_STOREFRONT_REDIRECTS = Object.freeze({
+  "/index.html": "/",
+  "/shop.html": "/shop",
+  "/cart.html": "/cart",
+  "/checkout.html": "/checkout",
+  "/account.html": "/account",
+  "/orders.html": "/orders",
+  "/how-to.html": "/how-to",
+  "/login.html": "/login",
+  "/signup.html": "/signup",
+  "/forgot-password.html": "/forgot-password",
+  "/reset-password.html": "/reset-password",
+  "/verification-success.html": "/verification-success",
+  "/payment-callback.html": "/payment-callback",
+});
+
 const STOREFRONT_PAGES = new Set([
   "login",
   "signup",
@@ -1581,6 +1597,13 @@ function assetRequest(request, env) {
   if (path === "/admin") {
     const canonical = new URL(request.url);
     canonical.pathname = "/admin/";
+    return Response.redirect(canonical, 301);
+  }
+
+  const legacyTarget = LEGACY_STOREFRONT_REDIRECTS[path];
+  if (legacyTarget) {
+    const canonical = new URL(request.url);
+    canonical.pathname = legacyTarget;
     return Response.redirect(canonical, 301);
   }
 
