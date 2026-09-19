@@ -70,7 +70,7 @@ export function initHeader(navEl) {
   if (!navEl) return;
   ensureStyles();
   initOfflineState();
-  import("./aiAssistant.js?v=slash-3").then(({ initAiAssistant }) => initAiAssistant()).catch(error => console.error("Beulah AI failed to initialize", error));
+  import("./aiAssistant.js?v=slash-5").then(({ initAiAssistant }) => initAiAssistant()).catch(error => console.error("Beulah AI failed to initialize", error));
 
   let lastSession = null;
   let resolved = false;
@@ -110,8 +110,8 @@ function renderNav(navEl, session) {
   desktopLinks.className = "site-header__links";
 
   desktopLinks.append(
-    createLink(page("index.html"), "Home"),
-    createLink(page("shop.html"), "Shop"),
+    createLink(page(""), "Home"),
+    createLink(page("shop"), "Shop"),
     createCartLink(),
   );
 
@@ -119,8 +119,8 @@ function renderNav(navEl, session) {
     desktopLinks.append(createAccountMenu());
   } else {
     desktopLinks.append(
-      createLink(page("login.html"), "Log in"),
-      createLink(page("signup.html"), "Create account", "btn btn-primary"),
+      createLink(page("login"), "Log in"),
+      createLink(page("signup"), "Create account", "btn btn-primary"),
     );
   }
 
@@ -139,15 +139,15 @@ function renderNav(navEl, session) {
   menu.setAttribute("role", "menu");
 
   menu.append(
-    createLink(page("index.html"), "Home", "site-header__menu-link"),
-    createLink(page("shop.html"), "Shop", "site-header__menu-link"),
+    createLink(page(""), "Home", "site-header__menu-link"),
+    createLink(page("shop"), "Shop", "site-header__menu-link"),
     createCartLink("site-header__menu-link"),
   );
 
   if (signedIn) {
     menu.append(
-      createLink(page("account.html"), "My Account", "site-header__menu-link"),
-      createLink(page("orders.html"), "My Orders", "site-header__menu-link"),
+      createLink(page("account"), "My Account", "site-header__menu-link"),
+      createLink(page("orders"), "My Orders", "site-header__menu-link"),
     );
     const divider = document.createElement("div");
     divider.className = "site-header__menu-divider";
@@ -155,8 +155,8 @@ function renderNav(navEl, session) {
     menu.append(divider, createLogoutButton("site-header__menu-link"));
   } else {
     menu.append(
-      createLink(page("login.html"), "Log in", "site-header__menu-link"),
-      createLink(page("signup.html"), "Create account", "btn btn-primary site-header__menu-link"),
+      createLink(page("login"), "Log in", "site-header__menu-link"),
+      createLink(page("signup"), "Create account", "btn btn-primary site-header__menu-link"),
     );
   }
 
@@ -216,8 +216,8 @@ function createAccountMenu() {
   menu.hidden = true;
   menu.setAttribute("role", "menu");
   menu.append(
-    createLink(page("account.html"), "My Account"),
-    createLink(page("orders.html"), "My Orders"),
+    createLink(page("account"), "My Account"),
+    createLink(page("orders"), "My Orders"),
   );
 
   const divider = document.createElement("div");
@@ -259,7 +259,7 @@ function createLink(href, text, className = "") {
 
 function createCartLink(className = "") {
   const link = createLink(
-    page("cart.html"),
+    page("cart"),
     "Cart",
     className ? `${className} site-header__cart-link` : "site-header__cart-link",
   );
@@ -313,7 +313,7 @@ function openLogoutModal() {
 
       try {
         await signOutCustomer();
-        window.location.href = page("index.html");
+        window.location.href = page("");
       } catch {
         confirmButton.disabled = false;
         confirmButton.textContent = "Log out";
