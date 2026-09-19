@@ -540,3 +540,25 @@ Phase 2 is now the Supabase Auth + Resend production configuration and acceptanc
 - Prevented the support email from wrapping unnecessarily on desktop.
 - Added a version query to the shared footer stylesheet reference across all 18 storefront pages so the corrected CSS is fetched instead of a cached older stylesheet.
 - Verified the live `/css/footer.css?v=ed96d31c` contains the corrected footer rules.
+
+
+## 2026-09-19 — Transactional Resend email wiring
+
+### Implementation
+- Added `worker/emailService.js` with the existing Order Confirmation, Payment Success, and Order Status Update HTML templates and server-side variable rendering.
+- Added direct Resend Email API delivery from the Cloudflare Worker using `RESEND_API_KEY` and a verified `RESEND_FROM_EMAIL` sender.
+- Connected successful Paystack finalization from both verify and webhook paths to the Order Confirmation and Payment Success emails.
+- Added Resend idempotency keys so duplicate verify/webhook processing does not create duplicate transactional emails.
+- Added `POST /api/admin/orders/status` as the trusted admin order-status update boundary and connected it to the Order Status Update email.
+- Corrected the admin order-status values to match the current database constraint: `pending_payment`, `paid`, `confirmed`, and `cancelled`.
+- Kept payment finalization independent from email delivery: a Resend failure does not roll back a successful payment.
+
+### Configuration required
+- `RESEND_API_KEY` must be added as a Cloudflare Worker secret.
+- `RESEND_FROM_EMAIL` must be set to a sender on the verified Resend sending domain.
+
+### Verification
+- Inspected the current Supabase `orders.status` constraint and confirmed the supported status values before changing the admin status flow.
+- Inspected the `finalize_paystack_payment` function and confirmed it is idempotent, allowing the email layer to safely run after both verify and webhook processing when paired with Resend idempotency keys.
+- Re-read the changed Worker, email service, admin order flow, Wrangler configuration, and documentation from `main` after implementation.
+- Live email delivery is not claimed yet because the Cloudflare Worker Resend API key/sender configuration still requires owner-side secret configuration and deployment.
