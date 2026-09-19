@@ -22,7 +22,7 @@ The admin UI has its own `/admin/forgot-password.html` and `/admin/reset-passwor
 - `payment-success.html`
 - `order-status-update.html`
 
-These use application variables such as `{{customer_name}}`, `{{order_number}}`, and `{{order_url}}`. They are design/source templates only until the application email-sending path is explicitly wired to Resend.
+These use application variables such as `{{customer_name}}`, `{{order_number}}`, and `{{order_url}}`. They are now wired into the Cloudflare Worker + Resend transactional sending path. The Worker renders the templates server-side and sends them through the Resend Email API.
 
 ## Rules
 
