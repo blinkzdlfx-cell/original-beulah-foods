@@ -244,36 +244,98 @@ async function loadOrderSummary(env, orderId) {
 
 async function verifyPaystack(request, env) {
   const auth = await authenticateCustomer(request, env);
-  if (!auth) return json({ error: "UNAUTHENTICATED" }, 401);
+  if (!auth) {
+    console.error(JSON.stringify({ event: "paystack_verify_failed", stage: "authentication", code: "UNAUTHENTICATED" }));
+    return json({ error: "UNAUTHENTICATED" }, 401);
+  }
 
   let reference = new URL(request.url).searchParams.get("reference");
   if (request.method === "POST") {
     try {
-      const body = await request.json();      reference = body?.reference || reference;
+      const body = await request.json();
+      reference = body?.reference || reference;
     } catch {
+      console.error(JSON.stringify({ event: "paystack_verify_failed", stage: "request_body", code: "INVALID_JSON" }));
       return json({ error: "INVALID_JSON" }, 400);
     }
   }
   reference = String(reference || "").trim();
-  if (!reference) return json({ error: "REFERENCE_REQUIRED" }, 400);
+  if (!reference) {
+    console.error(JSON.stringify({ event: "paystack_verify_failed", stage: "reference", code: "REFERENCE_REQUIRED" }));
+    return json({ error: "REFERENCE_REQUIRED" }, 400);
+  }
+
+  console.log(JSON.stringify({
+    event: "paystack_verify_started",
+    reference,
+    method: request.method,
+  }));
 
   const payment = await getPaymentForCustomer(env, reference, auth.user.id);
-  if (!payment) return json({ error: "PAYMENT_NOT_FOUND" }, 404);
+  if (!payment) {
+    console.error(JSON.stringify({ event: "paystack_verify_failed", stage: "payment_lookup", code: "PAYMENT_NOT_FOUND", reference }));
+    return json({ error: "PAYMENT_NOT_FOUND" }, 404);
+  }
+
+  console.log(JSON.stringify({
+    event: "paystack_verify_payment_found",
+    reference,
+    payment_status: payment.status,
+    order_id: payment.order_id,
+  }));
 
   const paystack = await paystackRequest(env, `/transaction/verify/${encodeURIComponent(reference)}`, { method: "GET" });
+  console.log(JSON.stringify({
+    event: "paystack_verify_provider_response",
+    reference,
+    http_status: paystack.response.status,
+    provider_status: paystack.data?.data?.status || null,
+    provider_code: paystack.data?.data?.id == null ? null : String(paystack.data.data.id),
+    provider_message: paystack.data?.message || null,
+  }));
+
   if (!paystack.response.ok || !paystack.data?.status || !paystack.data?.data) {
+    console.error(JSON.stringify({
+      event: "paystack_verify_failed",
+      stage: "provider_verification",
+      code: "PAYMENT_VERIFICATION_FAILED",
+      reference,
+      http_status: paystack.response.status,
+      provider_message: paystack.data?.message || null,
+    }));
     return json({ error: "PAYMENT_VERIFICATION_FAILED" }, 502);
   }
 
   const transaction = paystack.data.data;
-  const result = await finalizePayment(env, {
+  let result;
+  try {
+    result = await finalizePayment(env, {
+      reference,
+      provider_transaction_id: transaction.id,
+      amount_kobo: transaction.amount,
+      currency: transaction.currency,
+      provider_status: transaction.status,
+      metadata: transaction,
+    });
+  } catch (error) {
+    console.error(JSON.stringify({
+      event: "paystack_verify_failed",
+      stage: "payment_finalization",
+      code: String(error?.message || "PAYMENT_FINALIZATION_FAILED").split(":")[0],
+      reference,
+      provider_status: transaction.status || null,
+    }));
+    throw error;
+  }
+
+  console.log(JSON.stringify({
+    event: "paystack_verify_finalized",
     reference,
-    provider_transaction_id: transaction.id,
-    amount_kobo: transaction.amount,
-    currency: transaction.currency,
-    provider_status: transaction.status,
-    metadata: transaction,
-  });
+    order_id: result?.order_id || payment.order_id,
+    payment_status: result?.status || null,
+    idempotent: Boolean(result?.idempotent),
+  }));
+
   const orderId = result?.order_id || payment.order_id;
   const order = await loadOrderSummary(env, orderId);
 
@@ -291,6 +353,14 @@ async function verifyPaystack(request, env) {
       }));
     }
   }
+
+  console.log(JSON.stringify({
+    event: "paystack_verify_completed",
+    reference,
+    order_id: orderId,
+    payment_status: result?.status || transaction.status,
+    email_sent: emailSent,
+  }));
 
   return json({
     payment_status: result?.status || transaction.status,
