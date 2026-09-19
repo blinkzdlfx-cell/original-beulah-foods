@@ -408,3 +408,21 @@ External TEST actions still required: apply the D1 migration, deploy the Worker,
 - Documented the design and acceptance checklist in `docs/OFFLINE_HANDLING.md`.
 
 No offline payment/order success is simulated and no production resources were changed.
+
+
+## 2026-09-19 — Production Phase 1 clean URL implementation
+
+Implemented the production storefront URL layer without changing the working Beulah AI behavior.
+
+- Added canonical clean public routes for storefront and authentication pages.
+- Added permanent redirects from legacy root-level `.html` URLs to their clean equivalents.
+- Updated storefront/authentication navigation links to use clean URLs.
+- Updated AI navigation targets to clean URLs.
+- Updated cart and checkout navigation to clean URLs.
+- Updated the Worker Paystack callback URL to `/payment-callback`.
+- Updated the service-worker shell to cache clean URLs.
+- Bumped the service-worker shell cache to `beulah-shell-v2`.
+- Re-read the changed source from `main` after implementation for source-level verification.
+- A local Node parser check was attempted but could not download repository files because the execution environment could not resolve `raw.githubusercontent.com`.
+
+Production hostname promotion remains gated on Cloudflare domain routing, production secrets, Supabase Auth/Resend configuration, Paystack production configuration, and final smoke testing.
