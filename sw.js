@@ -1,4 +1,4 @@
-const CACHE_NAME = "beulah-shell-v1";
+const CACHE_NAME = "beulah-shell-v2";
 const OFFLINE_URL = "/offline.html";
 const SHELL_URLS = [
   "/",
