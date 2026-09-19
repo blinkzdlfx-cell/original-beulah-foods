@@ -252,10 +252,10 @@ async function findRememberedCheckoutOrder() {
 async function init() {
   currentSession = await getCurrentSession();
   if (!currentSession?.user) {
-    const destination = `checkout.html${location.search || ""}`;
+    const destination = `/checkout${location.search || ""}`;
     authNotice.hidden = false;
     form.hidden = true;
-    authNotice.innerHTML = `Please <a href="/login.html?redirect=${encodeURIComponent(destination)}">log in</a> to continue to checkout.`;
+    authNotice.innerHTML = `Please <a href="/login?redirect=${encodeURIComponent(destination)}">log in</a> to continue to checkout.`;
     return;
   }
 
