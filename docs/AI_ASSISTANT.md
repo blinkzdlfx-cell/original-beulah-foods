@@ -158,3 +158,25 @@ The customer-facing assistant now separates server conversation history from the
 The frontend AI module cache-buster was incremented so deployed browsers receive the new module/CSS version.
 
 Production resources remain untouched.
+
+
+## 2026-09-19 — Conversation consistency fix
+
+The AI history flow was corrected after testing exposed two consistency problems:
+
+- The Worker route dispatcher referenced AI history handlers that were not present in the deployed source, causing `GET /api/ai/history` to fail instead of returning D1 history.
+- The frontend could begin a first message before its background history request had finished, causing the visible conversation to be built without the existing D1 context.
+
+The corrected flow is now:
+
+`open assistant → request history → keep it hidden → first message waits for history → render history + new message`.
+
+Authentication continuity was also hardened:
+
+- An existing guest conversation is associated with the authenticated customer when the same AI conversation cookie is presented.
+- If an authenticated customer has no usable conversation cookie, the Worker can recover their most recently updated conversation within the existing retention window.
+- Authentication state changes trigger a history refresh in the AI UI.
+- D1 remains the authoritative conversation store.
+- Browser localStorage is not used for AI message history.
+
+This keeps a conversation consistent across guest use, login, refresh, and page navigation while preserving customer ownership boundaries.
