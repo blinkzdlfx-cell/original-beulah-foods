@@ -388,3 +388,23 @@ Implemented the first Phase 5 hardening layer in TEST code:
 - Added docs/AI_PHASE5_TEST_CHECKLIST.md as the owner-run acceptance specification.
 
 External TEST actions still required: apply the D1 migration, deploy the Worker, verify the rate-limit bindings, and execute the checklist. Production remains untouched.
+
+## 2026-09-19 — AI UX and storefront offline foundation
+
+### AI conversation UX
+- Added a clean welcome state when Beulah AI opens instead of immediately rendering D1 history.
+- D1 history is prefetched and becomes visible when the customer starts a new message in the current interaction.
+- Added time-aware randomized greeting/readiness copy.
+- Added session-scoped assistant-open persistence for refreshes; explicit close clears the state.
+- Changed latest-message navigation so the down-arrow centers the newest message in the transcript.
+- Preserved non-jumping behavior when a customer is reading older messages.
+
+### Storefront offline foundation
+- Added a shared offline state manager initialized with the storefront navbar.
+- Added a global offline/restored connection banner.
+- Added a root service worker with versioned shell caching, network-first navigation, static asset caching, and an offline fallback page.
+- API requests are intentionally excluded from service-worker interception.
+- Beulah AI blocks new requests while offline and provides an explicit reconnect message.
+- Documented the design and acceptance checklist in `docs/OFFLINE_HANDLING.md`.
+
+No offline payment/order success is simulated and no production resources were changed.
