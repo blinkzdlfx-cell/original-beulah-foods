@@ -16,7 +16,7 @@
 <body>
   <header class="site-header">
     <div class="site-header__inner">
-      <a class="site-header__logo-wrap" href="index.html" aria-label="Beulah Foods home">
+      <a class="site-header__logo-wrap" href="/" aria-label="Beulah Foods home">
         <img class="site-header__logo" src="assets/beulah-logo.webp" alt="Beulah Foods">
       </a>
       <nav id="site-header-nav" class="site-header__nav" aria-label="Main navigation" hidden></nav>
@@ -25,7 +25,7 @@
 
   <main class="cart-page">
     <section class="cart-heading">
-      <a class="cart-back" href="shop.html"><span aria-hidden="true">←</span> Shop</a>
+      <a class="cart-back" href="/shop"><span aria-hidden="true">←</span> Shop</a>
       <p class="eyebrow">Cart</p>
       <h1>Your cart.</h1>
       <p>Choose what you want to buy now. Anything you leave unselected stays in your cart.</p>
@@ -55,19 +55,19 @@
           <span>Subtotal</span>
           <strong id="cart-subtotal">₦0.00</strong>
         </div>
-        <a id="checkout-link" class="btn btn-primary" href="checkout.html" aria-disabled="true">Review order</a>
+        <a id="checkout-link" class="btn btn-primary" href="/checkout" aria-disabled="true">Review order</a>
       </aside>
     </div>
 
     <section id="cart-empty" class="cart-empty card" hidden>
       <h2>Your cart is empty.</h2>
       <p>Add products from the shop to begin an order.</p>
-      <a class="btn btn-primary" href="shop.html">Browse products</a>
+      <a class="btn btn-primary" href="/shop">Browse products</a>
     </section>
   </main>
 
   <script type="module" src="js/pages/cart.js"></script>
-<script type="module">import { renderAnnouncements } from "./js/components/announcements.js"; renderAnnouncements("cart");</script><footer class="site-footer"><div class="footer__inner"><div><div class="footer__brand">Beulah Foods</div><p class="footer__copy">Eat Healthy, Live Healthy.</p><p class="footer__copy">Lagos, Nigeria</p><p class="footer__attribution">Produced and distributed by Beulah Gain Nigeria Limited.</p></div><div class="footer__links"><div><strong>Navigate</strong><a href="shop.html">Shop</a><a href="how-to.html">How To</a><a href="account.html">My Account</a><a href="orders.html">My Orders</a></div><div><strong>Legal</strong><a href="privacy-policy.html">Privacy Policy</a><a href="terms-of-service.html">Terms of Service</a></div><div><strong>Contact</strong><a href="mailto:beulahfoodshelp@gmail.com">beulahfoodshelp@gmail.com</a></div><div class="footer__locations"><strong>Locations</strong><p><strong>Head Office</strong><br>Suite B19/C9, Amori Shopping Complex,<br>OreLope Bus Stop, Egbeda Road.</p><p><strong>Factory</strong><br>22 Joshua Okeowo Street,<br>Ikotun, Lagos.</p></div></div><p class="footer__copy footer__copyright">© <span id="footer-year"></span> Beulah Foods</p></div></footer>
+<script type="module">import { renderAnnouncements } from "./js/components/announcements.js"; renderAnnouncements("cart");</script><footer class="site-footer"><div class="footer__inner"><div><div class="footer__brand">Beulah Foods</div><p class="footer__copy">Eat Healthy, Live Healthy.</p><p class="footer__copy">Lagos, Nigeria</p><p class="footer__attribution">Produced and distributed by Beulah Gain Nigeria Limited.</p></div><div class="footer__links"><div><strong>Navigate</strong><a href="/shop">Shop</a><a href="/how-to">How To</a><a href="/account">My Account</a><a href="/orders">My Orders</a></div><div><strong>Legal</strong><a href="privacy-policy.html">Privacy Policy</a><a href="terms-of-service.html">Terms of Service</a></div><div><strong>Contact</strong><a href="mailto:beulahfoodshelp@gmail.com">beulahfoodshelp@gmail.com</a></div><div class="footer__locations"><strong>Locations</strong><p><strong>Head Office</strong><br>Suite B19/C9, Amori Shopping Complex,<br>OreLope Bus Stop, Egbeda Road.</p><p><strong>Factory</strong><br>22 Joshua Okeowo Street,<br>Ikotun, Lagos.</p></div></div><p class="footer__copy footer__copyright">© <span id="footer-year"></span> Beulah Foods</p></div></footer>
   <script>document.getElementById("footer-year")?.replaceChildren(String(new Date().getFullYear()));</script>
 </body>
 </html>
