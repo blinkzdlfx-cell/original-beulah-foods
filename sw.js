@@ -2,13 +2,13 @@ const CACHE_NAME = "beulah-shell-v1";
 const OFFLINE_URL = "/offline.html";
 const SHELL_URLS = [
   "/",
-  "/index.html",
-  "/shop.html",
-  "/cart.html",
-  "/checkout.html",
-  "/account.html",
-  "/orders.html",
-  "/how-to.html",
+  "/",
+  "/shop",
+  "/cart",
+  "/checkout",
+  "/account",
+  "/orders",
+  "/how-to",
   OFFLINE_URL,
 ];
 
