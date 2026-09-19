@@ -907,11 +907,13 @@ async function getFooterHelpSource(env) {
   const email = footer.match(/href=["']mailto:([^"']+)["']/i);
 
   const text = stripHtml(footer);
-  const number = whatsapp?.[1] || phone?.[1]?.replace(/\D/g, "") || "";
+  const locationsMatch = footer.match(/<div[^>]*class=["'][^"']*footer__locations[^"']*["'][^>]*>([\s\S]*?)<\/div>/i);
+  const locationsText = locationsMatch ? stripHtml(locationsMatch[1]) : "";
 
   return {
     available: Boolean(text),
     footer_text: text.slice(0, 5000),
+    locations_text: locationsText.slice(0, 2000),
     whatsapp_number: whatsapp?.[1] || "",
     whatsapp_url: whatsapp?.[1] ? "https://wa.me/" + whatsapp[1] : "",
     phone_number: phone?.[1] || "",
@@ -933,31 +935,19 @@ async function composeAiHelpResponse(env) {
   const source = await getFooterHelpSource(env);
   if (!source.available) throw new Error("FOOTER_CONTACT_UNAVAILABLE");
 
-  const messages = [
-    {
-      role: "system",
-      content: [
-        "You are composing a short customer-facing Beulah Foods contact/help response.",
-        "Use only the verified storefront footer source supplied below.",
-        "You may reorganize and phrase the information naturally so it is easy to read.",
-        "Never change, abbreviate, normalize, invent, or reinterpret the verified address, phone number, WhatsApp number, email address, company name, or location names.",
-        "Do not add information that is not present in the footer source.",
-        "Do not use Markdown tables, decorative Markdown, asterisks, pipe characters, or database-style formatting.",
-        "Return one polished response only.",
-        "Verified footer source:",
-        JSON.stringify(source),
-      ].join("\n"),
-    },
-    {
-      role: "user",
-      content: "Provide the current Beulah Foods contact and location information from the footer.",
-    },
-  ];
+  const lines = [];
+  if (source.footer_text) {
+    const match = source.footer_text.match(/Beulah Foods\s+Eat Healthy, Live Healthy\.\s+([^]+?)Produced and distributed by/i);
+    if (match?.[1]?.trim()) lines.push(match[1].trim().replace(/\s+/g, " "));
+  }
+  if (source.locations_text) lines.push(source.locations_text.replace(/\s+/g, " ").trim());
+  if (source.email) lines.push("Email: " + source.email);
+  if (source.whatsapp_number) lines.push("WhatsApp: " + source.whatsapp_number);
+  if (source.phone_number) lines.push("Call: " + source.phone_number);
 
-  const result = await runAiWithFallback(env, messages, { useTools: false });
-  const text = cleanCustomerAiText(result?.text || "");
-  if (!text) throw new Error("AI_EMPTY_RESPONSE");
-  return { text, provider: result.provider, model: result.model };
+  const text = lines.filter(Boolean).join("\n");
+  if (!text) throw new Error("FOOTER_CONTACT_UNAVAILABLE");
+  return { text, provider: "verified-footer", model: null };
 }
 
 
@@ -1322,6 +1312,40 @@ async function runAiChat(request, env) {
     })) || [];
 
   await storeAiMessage(env, conversation.conversationId, "user", message);
+
+  const removeMatch = message.match(/^\/remove(?:\s+(.+))?$/i) || message.match(/^remove\s+(.+?)\s+from\s+(?:my\s+)?cart$/i);
+  if (removeMatch) {
+    const query = String(removeMatch[1] || "").trim();
+    if (!query) {
+      const help = cart.length
+        ? "Tell me the product name you want removed from your cart."
+        : "Your cart is currently empty.";
+      await storeAiMessage(env, conversation.conversationId, "assistant", help);
+      const headers = conversation.setCookie ? { "Set-Cookie": conversation.setCookie } : {};
+      return json({ conversation_id: conversation.conversationId, message: help, actions: [], provider: "deterministic", model: null }, 200, headers);
+    }
+
+    const toolResult = await executeAiTool(env, auth, "remove_from_cart", { query }, { cart });
+    if (toolResult?.cart_match_required) {
+      const names = toolResult.products.map(product => product.name).join(", ");
+      const help = "I found more than one matching product: " + names + ". Please tell me which one you want removed.";
+      await storeAiMessage(env, conversation.conversationId, "assistant", help);
+      const headers = conversation.setCookie ? { "Set-Cookie": conversation.setCookie } : {};
+      return json({ conversation_id: conversation.conversationId, message: help, actions: [], provider: "deterministic", model: null }, 200, headers);
+    }
+
+    if (!toolResult?.action) {
+      const help = "I couldn't find that product in your cart.";
+      await storeAiMessage(env, conversation.conversationId, "assistant", help);
+      const headers = conversation.setCookie ? { "Set-Cookie": conversation.setCookie } : {};
+      return json({ conversation_id: conversation.conversationId, message: help, actions: [], provider: "deterministic", model: null }, 200, headers);
+    }
+
+    const help = "I removed the matching product from your cart.";
+    await storeAiMessage(env, conversation.conversationId, "assistant", help);
+    const headers = conversation.setCookie ? { "Set-Cookie": conversation.setCookie } : {};
+    return json({ conversation_id: conversation.conversationId, message: help, actions: [toolResult.action], provider: "deterministic", model: null }, 200, headers);
+  }
 
   const contactQuestion = /\b(where|location|located|address|contact|reach|phone|whatsapp|email)\b/i.test(message);
   if (message.toLowerCase() === "/help" || contactQuestion) {
