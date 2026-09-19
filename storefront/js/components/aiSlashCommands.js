@@ -14,7 +14,7 @@ function ensureStylesheet() {
   if (styleLoaded || document.querySelector('link[data-beulah-ai-slash-styles]')) return;
   const link = document.createElement("link");
   link.rel = "stylesheet";
-  link.href = "/storefront/css/ai-slash-commands.css?v=1";
+  link.href = "/storefront/css/ai-slash-commands.css?v=2";
   link.dataset.beulahAiSlashStyles = "true";
   document.head.append(link);
   styleLoaded = true;
