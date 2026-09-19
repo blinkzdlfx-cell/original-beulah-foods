@@ -1,5 +1,15 @@
 const OFFLINE_BANNER_ID = "beulah-offline-banner";
+const OFFLINE_CSS_HREF = "/storefront/css/offline-state.css?v=offline-1";
 let onlineTimer = null;
+
+function ensureStyles() {
+  if (document.querySelector('link[data-beulah-offline-styles]')) return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = OFFLINE_CSS_HREF;
+  link.dataset.beulahOfflineStyles = "true";
+  document.head.append(link);
+}
 
 function getBanner() {
   let banner = document.getElementById(OFFLINE_BANNER_ID);
@@ -49,6 +59,7 @@ function registerServiceWorker() {
 export function initOfflineState() {
   if (window.__beulahOfflineInitialized) return;
   window.__beulahOfflineInitialized = true;
+  ensureStyles();
 
   window.addEventListener("offline", () => setConnectionState(false));
   window.addEventListener("online", () => setConnectionState(true, true));
