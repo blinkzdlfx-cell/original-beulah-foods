@@ -247,3 +247,94 @@ Do not change Beulah AI behavior as part of the domain promotion unless a produc
 The next implementation task is the **clean URL and production routing audit**. Before modifying routes, inspect the current Worker asset routing, all storefront navigation/redirect references, service-worker URLs, AI navigation targets, authentication redirects, and payment callback paths.
 
 After that audit, implement clean URLs as a separate controlled change and verify them before changing the production hostname.
+
+
+## Phase 1 implementation — clean public URLs
+
+Implemented on `main`.
+
+### Public URL contract
+
+The Worker now serves these canonical storefront paths:
+
+- `/`
+- `/shop`
+- `/cart`
+- `/checkout`
+- `/account`
+- `/orders`
+- `/how-to`
+- `/login`
+- `/signup`
+- `/forgot-password`
+- `/reset-password`
+- `/verification-success`
+- `/payment-callback`
+
+The underlying implementation files remain under `/storefront/*.html`.
+
+### Legacy URL handling
+
+Root-level legacy HTML URLs now issue permanent redirects to the clean public paths. Examples:
+
+`/shop.html` -> `/shop`
+
+`/checkout.html` -> `/checkout`
+
+`/account.html` -> `/account`
+
+`/payment-callback.html` -> `/payment-callback`
+
+The query string is preserved by the URL redirect, so checkout/order parameters continue to work.
+
+### Internal navigation
+
+Updated the main storefront/authentication pages so public navigation uses clean URLs instead of `.html` URLs.
+
+Updated AI structured navigation targets to:
+
+- `/shop`
+- `/cart`
+- `/checkout`
+- `/account`
+- `/orders`
+- `/how-to`
+
+Updated cart checkout navigation and checkout retry navigation to use `/checkout`.
+
+Updated the Worker Paystack callback URL to use `/payment-callback`.
+
+### Offline shell
+
+The service worker shell now caches the clean public paths instead of the old `.html` paths.
+
+The shell cache was bumped from `beulah-shell-v1` to `beulah-shell-v2` so existing browsers discard the previous route cache.
+
+### Verification performed
+
+Source-level verification was performed against the current `main` branch after the changes:
+
+- Worker contains the clean-route mapping.
+- Worker contains legacy `.html` redirects.
+- Paystack callback uses `/payment-callback`.
+- AI navigation targets use clean paths.
+- Cart checkout navigation uses `/checkout`.
+- Checkout retry navigation uses `/checkout`.
+- Service-worker shell uses clean paths and cache version `v2`.
+- Updated storefront/authentication HTML files contain clean public navigation links.
+
+A local JavaScript parser check was attempted, but the execution environment could not resolve `raw.githubusercontent.com`, so a fresh local `node --check` against downloaded repository files could not be completed here. The repository source itself was re-read from GitHub after the edits; no source-fetch or API write errors occurred.
+
+### Production status
+
+The clean URL implementation is committed to `main`, but this does **not** mean `www.beulahfoods.com` has been promoted yet.
+
+The following remain separate release gates:
+
+- Cloudflare custom-domain/Worker attachment verification.
+- Production secret verification.
+- Supabase Auth + Resend verification.
+- Paystack production configuration and final controlled payment test.
+- Final production smoke test.
+
+Brevo remains deferred to the marketing phase.
