@@ -27,7 +27,7 @@ function ensureStylesheet() {
   if (document.querySelector('link[data-beulah-ai-styles]')) return;
   const link = document.createElement("link");
   link.rel = "stylesheet";
-  link.href = CSS_HREF;
+  link.href = CSS_HREF + "?v=ai-2";
   link.dataset.beulahAiStyles = "true";
   document.head.append(link);
 }
