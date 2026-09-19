@@ -843,7 +843,8 @@ async function executeAiTool(env,auth,toolName,args,context) {
       const confirmation=await createAiConfirmation(env,auth,"cancel_reservation",{order_id:orderId});
       return {confirmation_required:true,confirmation,action:{type:"confirm_mutation",mutation:"cancel_reservation",confirmation_id:confirmation.confirmation_id,label:"Cancel reservation",expires_at:confirmation.expires_at}};
     }
-    case "get_company_contact": return await getFooterHelpSource(env);\n    case "get_support_contact": return await getFooterSupport(env);
+    case "get_company_contact": return await getFooterHelpSource(env);
+    case "get_support_contact": return await getFooterSupport(env);
     default: throw new Error("UNKNOWN_AI_TOOL");
   }
 }
