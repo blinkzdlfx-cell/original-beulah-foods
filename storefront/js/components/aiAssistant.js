@@ -6,6 +6,7 @@ let initialized = false;
 let messages = [];
 let historyMessages = [];
 let historyLoaded = false;
+let historyLoading = null;
 let conversationStarted = false;
 let pendingRetry = null;
 
@@ -31,7 +32,7 @@ function ensureStylesheet() {
   if (document.querySelector('link[data-beulah-ai-styles]')) return;
   const link = document.createElement("link");
   link.rel = "stylesheet";
-  link.href = CSS_HREF + "?v=ai-3";
+  link.href = CSS_HREF + "?v=ai-4";
   link.dataset.beulahAiStyles = "true";
   document.head.append(link);
 }
@@ -409,8 +410,9 @@ function showThinking(statusText = "Checking that for you…") {
 
 async function loadConversationHistory() {
   if (historyLoaded) return;
-  historyLoaded = true;
+  if (historyLoading) return historyLoading;
 
+  historyLoading = (async () => {
   try {
     const session = await getCurrentSession();
     const response = await fetch("/api/ai/history", {
@@ -442,7 +444,12 @@ async function loadConversationHistory() {
     historyMessages = [];
     messages = [];
     renderTranscript();
+  } finally {
+    historyLoading = null;
   }
+  })();
+
+  return historyLoading;
 }
 
 async function clearConversation() {
@@ -550,6 +557,10 @@ async function sendMessage(text) {
     });
     return;
   }
+
+  // History must be ready before the first message is added, otherwise a fast
+  // customer can start a new visual conversation before D1 history arrives.
+  await loadConversationHistory();
 
   if (!conversationStarted) {
     conversationStarted = true;
@@ -781,6 +792,18 @@ export function initAiAssistant() {
 
   loadConversationHistory();
   updateCommandHintVisibility();
+
+  // A login can happen on another page or while the assistant is open. The
+  // history endpoint re-associates a guest conversation with the authenticated
+  // customer, then this listener refreshes the in-memory history.
+  import("../services/authService.js").then(({ onAuthStateChange }) => {
+    onAuthStateChange(async (event, session) => {
+      if (event !== "SIGNED_IN" && event !== "TOKEN_REFRESHED") return;
+      historyLoaded = false;
+      await loadConversationHistory();
+      if (!conversationStarted) renderTranscript();
+    });
+  }).catch(() => {});
 
   try {
     if (sessionStorage.getItem(AI_OPEN_STATE_KEY) === "true") {
