@@ -340,6 +340,31 @@ async function handleWebhook(request, env) {
 }
 
 
+async function getAiHistoryRoute(request, env) {
+  const auth = await authenticateCustomer(request, env);
+  const conversation = await ensureConversation(env, request, auth);
+  const history = await loadAiHistory(env, conversation.conversationId, auth?.user?.id || null);
+  const headers = conversation.setCookie ? { "Set-Cookie": conversation.setCookie } : {};
+  return json({
+    conversation_id: conversation.conversationId,
+    messages: history?.messages || [],
+    authenticated: Boolean(auth),
+  }, 200, headers);
+}
+
+async function clearAiConversation(env, request, auth) {
+  const conversationId = getCookie(request, AI_CONVERSATION_COOKIE);
+  if (!validConversationId(conversationId)) {
+    return json({ cleared: true }, 200);
+  }
+
+  const row = await getConversation(env, conversationId, auth?.user?.id || null);
+  if (!row) return json({ cleared: true }, 200);
+
+  await aiDb(env).prepare("DELETE FROM ai_conversations WHERE conversation_id=?").bind(conversationId).run();
+  return json({ cleared: true, conversation_id: conversationId });
+}
+
 const AI_MAX_HISTORY = 12;
 const AI_MAX_TOOL_ROUNDS = 4;
 const AI_MAX_TOOL_CALLS_PER_ROUND = 1;
@@ -1208,6 +1233,16 @@ async function getConversation(env,id,customerId){
   else sql+=" AND customer_id IS NULL";
   return db.prepare(sql).bind(...args).first();
 }
+
+async function getLatestCustomerConversation(env, customerId) {
+  if (!customerId) return null;
+  const cutoff = Date.now() - AI_HISTORY_RETENTION_MS;
+  return aiDb(env)
+    .prepare("SELECT conversation_id,customer_id,created_at,updated_at FROM ai_conversations WHERE customer_id=? AND updated_at>=? ORDER BY updated_at DESC LIMIT 1")
+    .bind(customerId, cutoff)
+    .first();
+}
+
 async function ensureConversation(env,request,auth){
   const existing=getCookie(request,AI_CONVERSATION_COOKIE);
   if(validConversationId(existing)){
@@ -1219,6 +1254,14 @@ async function ensureConversation(env,request,auth){
       return{conversationId:existing,setCookie:null};
     }
   }
+
+  if(auth?.user?.id){
+    const latest=await getLatestCustomerConversation(env,auth.user.id);
+    if(latest){
+      return{conversationId:latest.conversation_id,setCookie:conversationCookie(latest.conversation_id)};
+    }
+  }
+
   const id=newConversationId(),now=Date.now();
   await aiDb(env).prepare("INSERT INTO ai_conversations(conversation_id,customer_id,created_at,updated_at) VALUES(?,?,?,?)").bind(id,auth?.user?.id||null,now,now).run();
   return{conversationId:id,setCookie:conversationCookie(id)};
