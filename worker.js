@@ -1,4 +1,4 @@
-import { sendSuccessfulPaymentEmails, trySendSuccessfulPaymentEmails, sendOrderStatusEmail } from "./worker/emailService.js";
+import { trySendSuccessfulPaymentEmails, sendOrderStatusEmail } from "./worker/emailService.js";
 
 const PAYSTACK_API = "https://api.paystack.co";
 const JSON_HEADERS = {
