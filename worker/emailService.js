@@ -87,7 +87,7 @@ async function getOrderEmailContext(env, orderId) {
     limit: "1",
   });
   const { response, data } = await supabaseRequest(env, "/rest/v1/orders?" + query.toString());
-  if (!response.ok || !Array.isArray(data) || !data[0]) throw new Error("ORDER_NOT_FOUND_FOR_EMAIL");
+  if (!response.ok || !Array.isArray(data) || !data[0]) {\n    console.error(JSON.stringify({ event: "transactional_email_order_lookup_failed", order_id: orderId, http_status: response.status }));\n    throw new Error("ORDER_NOT_FOUND_FOR_EMAIL");\n  }
   const order = data[0];
 
   const userResponse = await fetch(
@@ -99,7 +99,7 @@ async function getOrderEmailContext(env, orderId) {
       },
     },
   );
-  if (!userResponse.ok) throw new Error("CUSTOMER_EMAIL_NOT_FOUND");
+  if (!userResponse.ok) {\n    console.error(JSON.stringify({ event: "transactional_email_customer_lookup_failed", order_id: orderId, customer_id: order.customer_id, http_status: userResponse.status }));\n    throw new Error("CUSTOMER_EMAIL_NOT_FOUND");\n  }
   const user = await userResponse.json();
   const email = String(user?.email || "").trim();
   if (!email) throw new Error("CUSTOMER_EMAIL_NOT_FOUND");
@@ -172,6 +172,22 @@ export async function sendSuccessfulPaymentEmails(env, orderId, amountPaid, paym
   const failed = results.find((result) => result.status === "rejected");
   if (failed) throw failed.reason;
   return results.map((result) => result.value);
+}
+
+export async function trySendSuccessfulPaymentEmails(env, orderId, amountPaid, paymentReference) {
+  try {
+    await sendSuccessfulPaymentEmails(env, orderId, amountPaid, paymentReference);
+    return { sent: true, error: null };
+  } catch (error) {
+    const code = String(error?.message || "EMAIL_SEND_FAILED");
+    console.error(JSON.stringify({
+      event: "payment_transaction_email_failed",
+      order_id: orderId,
+      code: code.split(":")[0],
+      detail: code,
+    }));
+    return { sent: false, error: code.split(":")[0] };
+  }
 }
 
 export async function sendOrderStatusEmail(env, orderId, nextStatus) {
