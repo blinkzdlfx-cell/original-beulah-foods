@@ -532,3 +532,11 @@ Phase 2 is now the Supabase Auth + Resend production configuration and acceptanc
 
 ### Commit
 - b9c213d25c55b7736c9ca5e296277d0d337a4121
+
+
+### 2026-09-19 — Footer layout correction
+- Corrected the footer bottom/legal row so it occupies the full footer width instead of visually aligning under the Support/Visit Us area.
+- Adjusted desktop footer column proportions to give Support and Visit Us sufficient space.
+- Prevented the support email from wrapping unnecessarily on desktop.
+- Added a version query to the shared footer stylesheet reference across all 18 storefront pages so the corrected CSS is fetched instead of a cached older stylesheet.
+- Verified the live `/css/footer.css?v=ed96d31c` contains the corrected footer rules.
