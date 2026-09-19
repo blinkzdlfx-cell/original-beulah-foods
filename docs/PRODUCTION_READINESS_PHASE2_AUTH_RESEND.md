@@ -103,3 +103,8 @@ Phase 2 is complete only when:
 7. The results are recorded in docs/WORKLOG.md.
 
 Until then, production release remains gated.
+
+
+## Email template design
+
+The initial production email design set is stored under `docs/email-templates/`. Supabase Auth templates use Supabase's template variables; application order/payment templates use explicit application placeholders and are not considered integrated until the Resend sending path is verified.
