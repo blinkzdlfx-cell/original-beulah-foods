@@ -1,5 +1,6 @@
 import { getCurrentSession, onAuthStateChange, signOutCustomer } from "../services/authService.js";
 import { getCartItemCount, onCartChange } from "../services/cartService.js";
+import { initOfflineState } from "./offlineState.js";
 
 const page = (name) => `/${name}`;
 
@@ -68,7 +69,8 @@ function ensureStyles() {
 export function initHeader(navEl) {
   if (!navEl) return;
   ensureStyles();
-  import("./aiAssistant.js?v=slash-2").then(({ initAiAssistant }) => initAiAssistant()).catch(error => console.error("Beulah AI failed to initialize", error));
+  initOfflineState();
+  import("./aiAssistant.js?v=slash-3").then(({ initAiAssistant }) => initAiAssistant()).catch(error => console.error("Beulah AI failed to initialize", error));
 
   let lastSession = null;
   let resolved = false;
