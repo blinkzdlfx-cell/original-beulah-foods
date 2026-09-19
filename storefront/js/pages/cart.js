@@ -81,7 +81,7 @@ function updateSelectionUI(validItems) {
   checkoutLink.classList.toggle("is-disabled", selectedItems.length === 0);
   checkoutLink.setAttribute("aria-disabled", String(selectedItems.length === 0));
   checkoutLink.href = selectedItems.length
-    ? `checkout.html?items=${encodeURIComponent(selectedItems.map((item) => item.product.id).join(","))}`
+    ? `/checkout?items=${encodeURIComponent(selectedItems.map((item) => item.product.id).join(","))}`
     : "#";
 }
 
