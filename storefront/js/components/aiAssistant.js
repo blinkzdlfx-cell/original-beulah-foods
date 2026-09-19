@@ -1,5 +1,5 @@
 import { getCurrentSession } from "../services/authService.js";
-import { initAiSlashCommands } from "./aiSlashCommands.js";
+import { initAiSlashCommands } from "./aiSlashCommands.js?v=slash-2";
 import { getCart, addToCart, updateCartQuantity, removeFromCart } from "../services/cartService.js";
 
 let initialized = false;
@@ -659,7 +659,7 @@ export function initAiAssistant() {
   clear.addEventListener("click", clearConversation);
   form.addEventListener("submit", event => {
     event.preventDefault();
-    sendMessage(input.value, send);
+    sendMessage(input.value);
   });
 
   input.addEventListener("input", () => {
