@@ -1,5 +1,5 @@
 import { getCurrentSession } from "../services/authService.js";
-import { initAiSlashCommands } from "./aiSlashCommands.js?v=slash-4";
+import { initAiSlashCommands } from "./aiSlashCommands.js?v=slash-5";
 import { getCart, addToCart, updateCartQuantity, removeFromCart } from "../services/cartService.js";
 
 let initialized = false;
@@ -25,14 +25,14 @@ const AI_COMMAND_HINTS = Object.freeze([
 ]);
 
 const NAVIGATION_TARGETS = Object.freeze({
-  cart: "/cart.html", checkout: "/checkout.html", orders: "/orders.html", account: "/account.html", shop: "/shop.html", how_to: "/how-to.html",
+  cart: "/cart", checkout: "/checkout", orders: "/orders", account: "/account", shop: "/shop", how_to: "/how-to",
 });
 
 function ensureStylesheet() {
   if (document.querySelector('link[data-beulah-ai-styles]')) return;
   const link = document.createElement("link");
   link.rel = "stylesheet";
-  link.href = CSS_HREF + "?v=ai-4";
+  link.href = CSS_HREF + "?v=ai-5";
   link.dataset.beulahAiStyles = "true";
   document.head.append(link);
 }
