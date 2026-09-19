@@ -139,3 +139,22 @@ Sensitive mutations are explicit two-step operations:
 The AI never receives a payment control. Paystack initialization and verification remain outside the AI tool contract.
 
 Phase 5 acceptance is defined in docs/AI_PHASE5_TEST_CHECKLIST.md.
+
+## 2026-09-19 — Conversation UX refinement
+
+The customer-facing assistant now separates server conversation history from the initial visual state of a newly opened chat.
+
+- D1 remains the authoritative conversation store.
+- On assistant open, the customer sees a clean welcome state instead of an immediate history dump.
+- Recent D1 history is prefetched in the background and held in memory.
+- Once the customer sends the first message in that page interaction, the prepared history is rendered before the new turn is displayed.
+- The welcome state uses a time-aware, randomly selected greeting/readiness message and disappears once the conversation starts.
+- The Clear action resets the interaction state and allows a new welcome state.
+- The latest-message arrow now centers the newest message in the transcript instead of scrolling it flush to the bottom.
+- The arrow remains contextual and does not forcibly interrupt reading when a new response arrives.
+- The open state is stored in sessionStorage only, so a refresh can restore the open assistant UI without permanently auto-opening the chat. Closing the assistant clears that UI state.
+- No AI history is stored in browser localStorage.
+
+The frontend AI module cache-buster was incremented so deployed browsers receive the new module/CSS version.
+
+Production resources remain untouched.
