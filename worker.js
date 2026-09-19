@@ -1,3 +1,5 @@
+import { sendSuccessfulPaymentEmails, sendOrderStatusEmail } from "./worker/emailService.js";
+
 const PAYSTACK_API = "https://api.paystack.co";
 const JSON_HEADERS = {
   "Content-Type": "application/json; charset=utf-8",
@@ -275,6 +277,10 @@ async function verifyPaystack(request, env) {
   const orderId = result?.order_id || payment.order_id;
   const order = await loadOrderSummary(env, orderId);
 
+  if (result?.status === "successful") {
+    await sendSuccessfulPaymentEmails(env, orderId, koboToNgn(transaction.amount), reference);
+  }
+
   return json({
     payment_status: result?.status || transaction.status,
     order_id: orderId,
@@ -332,6 +338,9 @@ async function handleWebhook(request, env) {
       provider_status: data.status,
       metadata: event,
     });
+    if (result?.status === "successful") {
+      await sendSuccessfulPaymentEmails(env, result.order_id, koboToNgn(data.amount), reference);
+    }
     return json({ received: true, processed: true, status: result?.status || "processed" });
   } catch (error) {
     console.error("Paystack webhook finalization failed", error);
@@ -1503,6 +1512,73 @@ async function runAiChat(request, env) {
   );
 }
 
+async function authenticateAdmin(request, env) {
+  const auth = await authenticateCustomer(request, env);
+  if (!auth) return null;
+  const query = new URLSearchParams({
+    select: "user_id",
+    user_id: "eq." + auth.user.id,
+    limit: "1",
+  });
+  const { response, data } = await supabaseRequest(env, "/rest/v1/admin_users?" + query.toString(), {
+    accessToken: auth.token,
+  });
+  if (!response.ok || !Array.isArray(data) || !data[0]) return null;
+  return auth;
+}
+
+async function updateOrderStatusAndNotify(request, env) {
+  const auth = await authenticateAdmin(request, env);
+  if (!auth) return json({ error: "UNAUTHORIZED" }, 401);
+
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "INVALID_JSON" }, 400);
+  }
+
+  const orderId = String(body?.order_id || "").trim();
+  const nextStatus = String(body?.status || "").trim();
+  const allowedStatuses = new Set(["pending_payment", "paid", "confirmed", "cancelled"]);
+  if (!orderId || !allowedStatuses.has(nextStatus)) return json({ error: "INVALID_ORDER_STATUS" }, 400);
+
+  const orderQuery = new URLSearchParams({
+    select: "id,status",
+    id: "eq." + orderId,
+    limit: "1",
+  });
+  const current = await supabaseRequest(env, "/rest/v1/orders?" + orderQuery.toString());
+  if (!current.response.ok || !Array.isArray(current.data) || !current.data[0]) {
+    return json({ error: "ORDER_NOT_FOUND" }, 404);
+  }
+
+  const update = await supabaseRequest(env, "/rest/v1/orders?id=eq." + encodeURIComponent(orderId), {
+    method: "PATCH",
+    body: { status: nextStatus, updated_at: new Date().toISOString() },
+  });
+  if (!update.response.ok) return json({ error: "ORDER_STATUS_UPDATE_FAILED" }, 409);
+
+  try {
+    await sendOrderStatusEmail(env, orderId, nextStatus);
+  } catch (error) {
+    console.error(JSON.stringify({
+      event: "order_status_email_failed",
+      order_id: orderId,
+      status: nextStatus,
+      code: String(error?.message || "EMAIL_SEND_FAILED").split(":")[0],
+    }));
+    return json({ updated: true, email_sent: false, error: "ORDER_STATUS_EMAIL_FAILED" }, 502);
+  }
+
+  return json({
+    updated: true,
+    email_sent: true,
+    previous_status: current.data[0].status,
+    status: nextStatus,
+  });
+}
+
 async function confirmAiMutation(request, env) {
   const auth=await authenticateCustomer(request,env);
   if(!auth) return json({error:"UNAUTHENTICATED"},401);
@@ -1655,6 +1731,11 @@ export default {
     const url = new URL(request.url);
 
     try {
+      if (url.pathname === "/api/admin/orders/status") {
+        if (request.method !== "POST") return json({ error: "METHOD_NOT_ALLOWED" }, 405, { Allow: "POST" });
+        return await updateOrderStatusAndNotify(request, env);
+      }
+
       if (url.pathname === "/api/ai/history") {
         if (request.method === "GET") return await getAiHistoryRoute(request, env);
         if (request.method === "DELETE") {
