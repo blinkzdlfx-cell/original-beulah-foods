@@ -1556,6 +1556,7 @@ const LEGACY_STOREFRONT_REDIRECTS = Object.freeze({
 });
 
 const STOREFRONT_PAGES = new Set([
+  "how-to",
   "login",
   "signup",
   "forgot-password",
