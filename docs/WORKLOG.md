@@ -497,3 +497,22 @@ Deploy/propagate the current main Worker before declaring the How To and custom 
 
 ### Next phase
 Phase 2 is now the Supabase Auth + Resend production configuration and acceptance gate. Brevo remains deferred.
+
+
+## 2026-09-19 — Transactional email templates and footer content restructure
+
+### Implementation
+- Added production-oriented HTML templates under `docs/email-templates/` for signup confirmation, password reset, email change, magic link, order confirmation, payment success, and order-status updates.
+- Added template documentation distinguishing Supabase Auth variables from application-level transaction variables.
+- Restructured the shared footer content across the storefront pages without changing the visual brand direction: brand/attribution, Explore, Support, Visit Us, then a separate legal/copyright row.
+- Reworked the shared footer CSS for clearer hierarchy and responsive desktop/tablet/mobile content flow.
+
+### Scope protection
+- Paystack remains in TEST mode; no production secret was changed.
+- Beulah AI was not modified.
+- No database/payment data was changed.
+- Application transaction email sending was not claimed as wired; the application-level templates are prepared for the Resend sending path.
+
+### Verification
+- Re-read the shared footer stylesheet and changed page sources after implementation.
+- The next verification step is browser smoke testing of representative desktop/mobile pages and then wiring/testing the Supabase Auth templates through the production Resend SMTP configuration.
