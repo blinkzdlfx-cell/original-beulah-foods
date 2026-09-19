@@ -10,7 +10,7 @@
 import { supabase } from "../lib/supabaseClient.js";
 
 export async function signUpCustomer({ fullName, email, password }) {
-  const verificationRedirect = new URL("verification-success.html", `${window.location.origin}/`)
+  const verificationRedirect = new URL("verification-success", `${window.location.origin}/`)
     .href;
 
   const { data, error } = await supabase.auth.signUp({
