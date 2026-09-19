@@ -15,7 +15,7 @@ if (backButton) {
       window.history.back();
       return;
     }
-    window.location.href = "index.html";
+    window.location.href = "/";
   });
 }
 
