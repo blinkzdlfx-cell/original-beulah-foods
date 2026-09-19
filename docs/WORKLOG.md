@@ -472,3 +472,28 @@ The current `worker.js` contains the clean-route redirect map and explicit API h
 Cloudflare production promotion is BLOCKED. Do not change production secrets, Paystack production configuration, or declare the custom hostname production-ready until the deployed Worker/build is reconciled with `main` and the live route/API checks pass.
 
 This verification used a real browser fetch against the public hostname. No production data or payment transaction was modified.
+
+
+## 2026-09-19 — How To route and custom 404 fix
+
+### Findings
+- Production smoke testing found that the canonical /how-to path was not included in the Worker's clean storefront route set.
+- The site had no custom 404 page.
+
+### Implementation
+- Added how-to to STOREFRONT_PAGES in worker.js.
+- Kept the existing /how-to.html -> /how-to legacy redirect.
+- Changed the How To page's back-navigation fallback to /.
+- Added root 404.html.
+- Enabled assets.not_found_handling = 404-page in wrangler.toml.
+
+### Verification
+- Re-read the changed source from main.
+- Live verification immediately after the commits still returned 404 for /how-to, /how-to.html, and a deliberate unknown URL because the public hostname was still serving the previous deployment.
+- No production database or payment data was modified.
+
+### Gate
+Deploy/propagate the current main Worker before declaring the How To and custom 404 fixes live. After deployment, re-run the production URL smoke test.
+
+### Next phase
+Phase 2 is now the Supabase Auth + Resend production configuration and acceptance gate. Brevo remains deferred.
