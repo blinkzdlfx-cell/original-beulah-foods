@@ -713,3 +713,41 @@
     transition: none;
   }
 }
+
+
+.beulah-ai__history-loading {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: auto 0;
+  padding: 8px 12px;
+  border: 1px solid #dce4dc;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .94);
+  color: #667261;
+  font-size: .72rem;
+  line-height: 1.2;
+  box-shadow: 0 5px 16px rgba(0, 0, 0, .06);
+}
+
+.beulah-ai__history-spinner {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 13px;
+  border: 2px solid #d8e1d5;
+  border-top-color: #315222;
+  border-radius: 50%;
+  animation: beulahAiHistorySpin .7s linear infinite;
+}
+
+@keyframes beulahAiHistorySpin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .beulah-ai__history-spinner {
+    animation: none;
+  }
+}
