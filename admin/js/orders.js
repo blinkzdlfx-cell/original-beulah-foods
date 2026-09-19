@@ -5,7 +5,7 @@ const rows = document.getElementById("rows");
 const status = document.getElementById("status");
 const pagination = document.getElementById("order-pagination");
 const naira = new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" });
-const statuses = ["pending_payment", "paid", "processing", "completed", "cancelled"];
+const statuses = ["pending_payment", "paid", "confirmed", "cancelled"];
 const PAGE_SIZE = 25;
 let page = 1;
 
@@ -104,9 +104,31 @@ async function updateStatus(select) {
   const nextStatus = select.value;
   select.disabled = true;
   try {
-    const { error } = await supabase.rpc("admin_update_order_status", { target_order_id: orderId, target_status: nextStatus });
-    if (error) throw error;
-    showStatus("Order status updated.");
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) throw sessionError;
+    const token = sessionData?.session?.access_token;
+    if (!token) throw new Error("Admin session expired. Please sign in again.");
+
+    const response = await fetch("/api/admin/orders/status", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + token,
+      },
+      body: JSON.stringify({ order_id: orderId, status: nextStatus }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      if (result?.updated) {
+        showStatus("Order status updated, but the customer email could not be sent.", true);
+        await loadOrders();
+        return;
+      }
+      throw new Error(result?.error || "Could not update order status.");
+    }
+    showStatus(result?.email_sent === false
+      ? "Order status updated, but the customer email could not be sent."
+      : "Order status updated and customer email sent.");
     await loadOrders();
   } catch (error) {
     console.error(error);
