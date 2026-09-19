@@ -1,5 +1,5 @@
 import { getCurrentSession } from "../services/authService.js";
-import { initAiSlashCommands } from "./aiSlashCommands.js?v=slash-3";
+import { initAiSlashCommands } from "./aiSlashCommands.js?v=slash-4";
 import { getCart, addToCart, updateCartQuantity, removeFromCart } from "../services/cartService.js";
 
 let initialized = false;
