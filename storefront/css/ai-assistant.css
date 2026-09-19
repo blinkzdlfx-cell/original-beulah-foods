@@ -657,3 +657,59 @@
     transition: none;
   }
 }
+
+
+/* Latest-message navigation: the arrow brings the newest turn into a comfortable
+ * reading position instead of pinning it against the composer. */
+.beulah-ai__scroll-down {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 4;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid #d7e1d4;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .96);
+  color: #315222;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .12);
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(5px);
+  transition: opacity .18s ease, transform .18s ease, visibility 0s linear .18s;
+}
+
+.beulah-ai__scroll-down.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition: opacity .18s ease, transform .18s ease;
+}
+
+.beulah-ai__scroll-down:hover,
+.beulah-ai__scroll-down:focus-visible {
+  background: #f0f6ea;
+  border-color: #b8cdb0;
+}
+
+.beulah-ai__scroll-down svg {
+  width: 18px;
+  height: 18px;
+}
+
+.beulah-ai__empty {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .beulah-ai__scroll-down {
+    transition: none;
+  }
+}
