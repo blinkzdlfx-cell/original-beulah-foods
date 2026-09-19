@@ -451,3 +451,24 @@ Parser verification:
 - The previous inability to run repository-local `node --check` remains an environment limitation because the runtime cannot resolve GitHub's raw host.
 
 This audit is source-level verification, not live-browser or production-domain verification. Production promotion remains blocked until the Cloudflare, Supabase/Auth, Resend, Paystack, and smoke-test gates are completed.
+
+
+## 2026-09-19 — Deployed clean-URL verification gate found stale deployment
+
+Performed a live-browser verification against `https://www.beulahfoods.com` before proceeding to Cloudflare production promotion.
+
+### Verified live behavior
+- `/`, `/shop`, `/cart`, `/checkout`, and `/login` are reachable on the custom hostname.
+- The live root/page HTML still exposes multiple legacy `.html` navigation targets, including `shop.html`, `account.html`, and `orders.html`.
+- `/shop.html` did not redirect to `/shop`; it rendered the shop page directly.
+- The live HTML reports canonical/OG URLs on `beulah-foods.blinkzdlfx.workers.dev`, not the production hostname.
+- `/api/paystack/webhook` and `/api/paystack/initialize` returned 404 to the external browser fetch, so live API routing is not currently verified on the custom hostname.
+- The live `/storefront/shop.html` request redirected to `/shop.html`, confirming the currently deployed routing behavior is not the clean-URL behavior present in the current `main` source.
+
+### Comparison with current main
+The current `worker.js` contains the clean-route redirect map and explicit API handlers, and the current storefront source contains clean internal routes. Therefore the observed production behavior is inconsistent with the current `main` source.
+
+### Gate decision
+Cloudflare production promotion is BLOCKED. Do not change production secrets, Paystack production configuration, or declare the custom hostname production-ready until the deployed Worker/build is reconciled with `main` and the live route/API checks pass.
+
+This verification used a real browser fetch against the public hostname. No production data or payment transaction was modified.
