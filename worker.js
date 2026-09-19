@@ -168,7 +168,7 @@ async function initializePaystack(request, env) {
   const reference = String(payment?.reference || "");
   if (amountKobo === null || !reference) return json({ error: "PAYMENT_ATTEMPT_INVALID" }, 500);
 
-  const callbackUrl = `${new URL(request.url).origin}/payment-callback.html`;
+  const callbackUrl = `${new URL(request.url).origin}/payment-callback`;
   const paystack = await paystackRequest(env, "/transaction/initialize", {
     method: "POST",
     body: JSON.stringify({
@@ -1527,7 +1527,7 @@ async function confirmAiMutation(request, env) {
       if(!profile?.full_name?.trim()||!profile?.phone?.trim()||!profile?.address?.trim()) return json({error:"PROFILE_INCOMPLETE"},409);
       const {response,data}=await callCustomerRpc(env,"create_pending_order",{cart_items:cart.map(item=>({productId:item.productId,quantity:item.quantity})),delivery_name:profile.full_name.trim(),delivery_phone:profile.phone.trim(),delivery_address:profile.address.trim(),requested_promo_code:String(payload?.promo_code||"").trim()||null},auth.token);
       if(!response.ok) throw new Error(typeof data==="object"&&data?.message?data.message:"ORDER_CREATION_FAILED");
-      return json({message:"Your order has been reserved for 15 minutes. You can now continue to payment.",actions:[{type:"order_created",order_id:data.order_id,order_number:data.order_number,checkout_url:"/checkout.html?order="+encodeURIComponent(data.order_id)}],order_id:data.order_id,order_number:data.order_number,reservation_id:data.reservation_id,expires_at:data.expires_at});
+      return json({message:"Your order has been reserved for 15 minutes. You can now continue to payment.",actions:[{type:"order_created",order_id:data.order_id,order_number:data.order_number,checkout_url:"/checkout?order="+encodeURIComponent(data.order_id)}],order_id:data.order_id,order_number:data.order_number,reservation_id:data.reservation_id,expires_at:data.expires_at});
     }
     const orderId=String(payload?.order_id||"").trim();
     const {response,data}=await callCustomerRpc(env,"cancel_pending_order",{target_order_id:orderId},auth.token);
