@@ -390,6 +390,32 @@ function getActionStatus(text) {
   return "Checking that for you…";
 }
 
+function showHistoryLoading() {
+  const list = getList();
+  if (!list) return null;
+  removeThinking();
+
+  let node = list.querySelector(".beulah-ai__history-loading");
+  if (node) return node;
+
+  node = document.createElement("div");
+  node.className = "beulah-ai__history-loading";
+  node.setAttribute("role", "status");
+  node.setAttribute("aria-label", "Loading conversation");
+  node.innerHTML =
+    '<span class="beulah-ai__history-spinner" aria-hidden="true"></span>' +
+    '<span>Loading your conversation…</span>';
+  list.append(node);
+  requestAnimationFrame(() => {
+    list.scrollTo({ top: list.scrollHeight, behavior: "auto" });
+  });
+  return node;
+}
+
+function removeHistoryLoading() {
+  getList()?.querySelector(".beulah-ai__history-loading")?.remove();
+}
+
 function showThinking(statusText = "Checking that for you…") {
   const list = getList();
   if (!list) return null;
@@ -408,45 +434,53 @@ function showThinking(statusText = "Checking that for you…") {
   return node;
 }
 
-async function loadConversationHistory() {
+async function loadConversationHistory({ showLoader = false } = {}) {
   if (historyLoaded) return;
   if (historyLoading) return historyLoading;
 
-  historyLoading = (async () => {
-  try {
-    const session = await getCurrentSession();
-    const response = await fetch("/api/ai/history", {
-      headers: session?.access_token
-        ? { Authorization: "Bearer " + session.access_token }
-        : {},
-    });
-
-    if (!response.ok) throw new Error("HISTORY_LOAD_FAILED");
-
-    const data = await response.json();
-    historyMessages = Array.isArray(data.messages)
-      ? data.messages.slice(-30).map(item => ({
-          id: crypto.randomUUID(),
-          role: item.role === "assistant" ? "assistant" : "user",
-          content: String(item.content || ""),
-          actions: [],
-          error: false,
-        }))
-      : [];
-
-    // Keep server history ready in memory, but intentionally do not render it
-    // until the customer starts a new message in this page interaction.
-    if (!conversationStarted) {
-      messages = [];
-      renderTranscript();
-    }
-  } catch {
-    historyMessages = [];
-    messages = [];
-    renderTranscript();
-  } finally {
-    historyLoading = null;
+  if (showLoader) {
+    showHistoryLoading();
   }
+
+  historyLoading = (async () => {
+    try {
+      const session = await getCurrentSession();
+      const response = await fetch("/api/ai/history", {
+        headers: session?.access_token
+          ? { Authorization: "Bearer " + session.access_token }
+          : {},
+      });
+
+      if (!response.ok) throw new Error("HISTORY_LOAD_FAILED");
+
+      const data = await response.json();
+      historyMessages = Array.isArray(data.messages)
+        ? data.messages.slice(-30).map(item => ({
+            id: crypto.randomUUID(),
+            role: item.role === "assistant" ? "assistant" : "user",
+            content: String(item.content || ""),
+            actions: [],
+            error: false,
+          }))
+        : [];
+
+      historyLoaded = true;
+
+      if (!conversationStarted) {
+        messages = [];
+        renderTranscript();
+      }
+    } catch (error) {
+      historyMessages = [];
+      if (!conversationStarted) {
+        messages = [];
+        renderTranscript();
+      }
+      throw error;
+    } finally {
+      historyLoading = null;
+      removeHistoryLoading();
+    }
   })();
 
   return historyLoading;
@@ -558,9 +592,21 @@ async function sendMessage(text) {
     return;
   }
 
-  // History must be ready before the first message is added, otherwise a fast
-  // customer can start a new visual conversation before D1 history arrives.
-  await loadConversationHistory();
+  // If the background history load is still running, visibly wait for it.
+  // The AI thinking/activity state starts only after the conversation is ready.
+  if (!historyLoaded) {
+    showHistoryLoading();
+    try {
+      await loadConversationHistory();
+    } catch {
+      removeHistoryLoading();
+      addMessage("assistant", "I couldn't load your conversation yet. Please try again.", [], {
+        error: true,
+        follow: true,
+      });
+      return;
+    }
+  }
 
   if (!conversationStarted) {
     conversationStarted = true;
@@ -800,7 +846,9 @@ export function initAiAssistant() {
     onAuthStateChange(async (event, session) => {
       if (event !== "SIGNED_IN" && event !== "TOKEN_REFRESHED") return;
       historyLoaded = false;
-      await loadConversationHistory();
+      try {
+        await loadConversationHistory({ showLoader: true });
+      } catch {}
       if (!conversationStarted) renderTranscript();
     });
   }).catch(() => {});
