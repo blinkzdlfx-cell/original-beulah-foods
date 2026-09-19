@@ -1,4 +1,4 @@
-import { sendSuccessfulPaymentEmails, sendOrderStatusEmail } from "./worker/emailService.js";
+import { sendSuccessfulPaymentEmails, trySendSuccessfulPaymentEmails, sendOrderStatusEmail } from "./worker/emailService.js";
 
 const PAYSTACK_API = "https://api.paystack.co";
 const JSON_HEADERS = {
@@ -342,8 +342,8 @@ async function verifyPaystack(request, env) {
   let emailSent = null;
   if (result?.status === "successful") {
     try {
-      await sendSuccessfulPaymentEmails(env, orderId, koboToNgn(transaction.amount), reference);
-      emailSent = true;
+      const emailResult = await trySendSuccessfulPaymentEmails(env, orderId, koboToNgn(transaction.amount), reference);
+      emailSent = emailResult.sent;
     } catch (error) {
       emailSent = false;
       console.error(JSON.stringify({
@@ -423,8 +423,8 @@ async function handleWebhook(request, env) {
     let emailSent = null;
     if (result?.status === "successful") {
       try {
-        await sendSuccessfulPaymentEmails(env, result.order_id, koboToNgn(data.amount), reference);
-        emailSent = true;
+        const emailResult = await trySendSuccessfulPaymentEmails(env, result.order_id, koboToNgn(data.amount), reference);
+        emailSent = emailResult.sent;
       } catch (error) {
         emailSent = false;
         console.error(JSON.stringify({
