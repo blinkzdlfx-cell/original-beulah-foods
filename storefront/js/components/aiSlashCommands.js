@@ -64,7 +64,7 @@ function renderMenu(root, input, onSelect) {
     button.dataset.commandId = command.id;
     button.innerHTML =
       '<span class="beulah-ai__slash-command-name">/' + command.id + " · " + command.label + "</span>" +
-      '<span class="beulah-ai__slash-command-description"></span>";
+      '<span class="beulah-ai__slash-command-description"></span>';
     button.querySelector(".beulah-ai__slash-command-description").textContent = command.description;
 
     button.addEventListener("mousedown", event => event.preventDefault());
