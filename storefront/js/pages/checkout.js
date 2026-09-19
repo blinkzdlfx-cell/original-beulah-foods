@@ -475,7 +475,7 @@ async function retryExpiredReservation() {
     clearRememberedCheckoutOrder();
     pendingOrderId = null;
     pendingReservation = null;
-    location.href = "/checkout.html";
+    location.href = "/checkout";
   } catch (error) {
     retryReservation.disabled = false;
     retryReservation.textContent = "Retry checkout";
