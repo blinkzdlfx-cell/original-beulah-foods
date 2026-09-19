@@ -180,3 +180,17 @@ Authentication continuity was also hardened:
 - Browser localStorage is not used for AI message history.
 
 This keeps a conversation consistent across guest use, login, refresh, and page navigation while preserving customer ownership boundaries.
+
+
+## 2026-09-19 — Visible history loading state
+
+When a conversation is being restored, the frontend now distinguishes two asynchronous states:
+
+1. **Conversation history loading** — a compact spinner and “Loading your conversation…” status is shown if the customer sends a message before D1 history has finished loading.
+2. **AI activity** — only after history is ready does the existing action/thinking animation begin.
+
+This prevents the interface from appearing to answer before the customer's prior conversation has been restored.
+
+For authenticated users, history loading also starts in the background when authentication changes. The conversation remains hidden until the customer starts interacting, preserving the clean-open UX.
+
+The frontend AI cache-buster was incremented for this change.
