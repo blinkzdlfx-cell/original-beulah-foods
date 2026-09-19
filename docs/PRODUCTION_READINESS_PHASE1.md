@@ -338,3 +338,28 @@ The following remain separate release gates:
 - Final production smoke test.
 
 Brevo remains deferred to the marketing phase.
+
+
+## 2026-09-19 — How To route and custom 404 hardening
+
+During production smoke testing, the /how-to page was found to be unavailable and the site had no custom 404 page.
+
+### Code fixes implemented
+
+- Added how-to to the Worker clean storefront route allowlist so /how-to resolves to storefront/how-to.html.
+- Kept /how-to.html as a legacy URL that redirects to /how-to.
+- Changed the How To page's browser-history fallback from index.html to the canonical / route.
+- Added root 404.html as the site's custom not-found page.
+- Enabled Cloudflare Workers Assets not_found_handling = 404-page so missing asset paths use the custom 404 page while retaining HTTP 404 status.
+
+Cloudflare documents 404-page as the Workers Assets mechanism for serving a custom 404.html with a 404 Not Found status. citeturn1search0turn1search9
+
+### Verification status
+
+- Source files were re-read from main after the changes.
+- The custom domain is attached in Cloudflare, but the public hostname has not yet reflected this latest main deployment when checked immediately after the commits; /how-to and the test 404 URL still returned 404 from the currently deployed build.
+- Therefore live production verification remains pending until the current main build is deployed/propagated to the Worker.
+
+### Phase 1 gate
+
+The implementation portion of the URL/404 work is complete. The production smoke-test gate remains open until the deployed Worker is confirmed to match main and /how-to, legacy redirects, canonical metadata, API routes, and the custom 404 behavior pass live verification.
