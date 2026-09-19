@@ -426,3 +426,28 @@ Implemented the production storefront URL layer without changing the working Beu
 - A local Node parser check was attempted but could not download repository files because the execution environment could not resolve `raw.githubusercontent.com`.
 
 Production hostname promotion remains gated on Cloudflare domain routing, production secrets, Supabase Auth/Resend configuration, Paystack production configuration, and final smoke testing.
+
+
+## 2026-09-19 — Second clean-URL code audit and fixes
+
+A second source-level audit was performed before proceeding to production routing work.
+
+Findings:
+- The shared storefront navbar still generated several legacy `.html` links.
+- The navbar AI import still used the older `slash-3` cache-buster even though the current assistant asset is `slash-5`.
+- The authentication service still generated the signup verification redirect with `verification-success.html`.
+- The checkout authentication branch still used `checkout.html` and `/login.html` when constructing its login redirect.
+
+Fixes applied to `main`:
+- Converted navbar Home, Shop, Cart, Login, Signup, Account, and Orders links to clean routes.
+- Updated the navbar AI import cache-buster to `slash-5`.
+- Updated the signup verification redirect to `/verification-success`.
+- Updated checkout's unauthenticated redirect destination to `/checkout` and its login target to `/login`.
+
+Parser verification:
+- `worker.js`: syntax-checked after normalizing the module export for isolated parsing.
+- `sw.js`: syntax-checked directly.
+- Storefront module files `navbar.js`, `authService.js`, `cart.js`, `checkout.js`, `aiAssistant.js`, and `aiSlashCommands.js`: syntax-checked with module imports removed only for isolated parser validation.
+- The previous inability to run repository-local `node --check` remains an environment limitation because the runtime cannot resolve GitHub's raw host.
+
+This audit is source-level verification, not live-browser or production-domain verification. Production promotion remains blocked until the Cloudflare, Supabase/Auth, Resend, Paystack, and smoke-test gates are completed.
