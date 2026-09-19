@@ -516,3 +516,19 @@ Phase 2 is now the Supabase Auth + Resend production configuration and acceptanc
 ### Verification
 - Re-read the shared footer stylesheet and changed page sources after implementation.
 - The next verification step is browser smoke testing of representative desktop/mobile pages and then wiring/testing the Supabase Auth templates through the production Resend SMTP configuration.
+
+
+## 2026-09-19 — Footer link presentation and clickability cleanup
+
+### Implementation
+- Removed footer link underlines globally through the shared storefront/css/footer.css rule, including visited, hover, and active states.
+- Preserved the existing footer hierarchy and lime/accent heading treatment; this was a link-decoration correction, not a redesign.
+- Verified that every storefront page using the shared footer contains actual anchor elements for navigation, email, WhatsApp, phone, and legal links.
+
+### Verification
+- Re-read all 18 storefront pages using the shared footer.
+- Confirmed each contains the shared footer and legal navigation anchors.
+- Confirmed support actions use clickable mailto:, WhatsApp, and tel: links.
+
+### Commit
+- b9c213d25c55b7736c9ca5e296277d0d337a4121
