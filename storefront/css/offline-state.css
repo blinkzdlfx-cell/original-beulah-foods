@@ -1,0 +1,54 @@
+.beulah-offline-banner {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  z-index: 260;
+  width: min(460px, calc(100vw - 28px));
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid #d7e1d4;
+  border-radius: 10px;
+  background: rgba(255,255,255,.97);
+  color: #354033;
+  box-shadow: 0 10px 30px rgba(0,0,0,.12);
+  font-size: .74rem;
+  line-height: 1.35;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -10px);
+  transition: opacity .2s ease, transform .2s ease;
+}
+
+.beulah-offline-banner.is-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.beulah-offline-banner.is-offline {
+  border-color: #e4c9b8;
+}
+
+.beulah-offline-banner.is-restored {
+  border-color: #c9ddb9;
+}
+
+.beulah-offline-banner__dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: #a45d3b;
+}
+
+.beulah-offline-banner.is-restored .beulah-offline-banner__dot {
+  background: #5d8a43;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .beulah-offline-banner { transition: none; }
+}
