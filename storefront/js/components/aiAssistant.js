@@ -1,11 +1,15 @@
 import { getCurrentSession } from "../services/authService.js";
-import { initAiSlashCommands } from "./aiSlashCommands.js?v=slash-2";
+import { initAiSlashCommands } from "./aiSlashCommands.js?v=slash-3";
 import { getCart, addToCart, updateCartQuantity, removeFromCart } from "../services/cartService.js";
 
 let initialized = false;
 let messages = [];
+let historyMessages = [];
 let historyLoaded = false;
+let conversationStarted = false;
 let pendingRetry = null;
+
+const AI_OPEN_STATE_KEY = "beulah_ai_open";
 
 const CSS_HREF = "/storefront/css/ai-assistant.css";
 
@@ -27,7 +31,7 @@ function ensureStylesheet() {
   if (document.querySelector('link[data-beulah-ai-styles]')) return;
   const link = document.createElement("link");
   link.rel = "stylesheet";
-  link.href = CSS_HREF + "?v=ai-2";
+  link.href = CSS_HREF + "?v=ai-3";
   link.dataset.beulahAiStyles = "true";
   document.head.append(link);
 }
@@ -58,6 +62,38 @@ function isNearBottom(threshold = 72) {
   return getDistanceFromBottom() <= threshold;
 }
 
+function getWelcomeMessage() {
+  const hour = new Date().getHours();
+  const period = hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
+  const messagesByPeriod = {
+    morning: [
+      "Good morning. Ready when you are.",
+      "Good morning. How can I help today?",
+      "Good morning. What can I help you find?",
+    ],
+    afternoon: [
+      "Good afternoon. Ready when you are.",
+      "Good afternoon. What can I help you with?",
+      "Good afternoon. Tell me what you need.",
+    ],
+    evening: [
+      "Good evening. Ready when you are.",
+      "Good evening. How can I help?",
+      "Good evening. What are you looking for?",
+    ],
+  };
+  const general = [
+    "Ready when you are.",
+    "I'm here when you're ready.",
+    "What can I help you find?",
+    "Let's get started.",
+    "Tell me what you need.",
+    "What are you looking for today?",
+  ];
+  const pool = [...messagesByPeriod[period], ...general];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 function updateScrollButton() {
   const root = document.querySelector(".beulah-ai");
   const button = root?.querySelector(".beulah-ai__scroll-down");
@@ -69,18 +105,39 @@ function scrollToLatest({ smooth = true, force = false } = {}) {
   const list = getList();
   if (!list) return;
   if (!force && !isNearBottom()) return;
-  list.scrollTo({
-    top: list.scrollHeight,
-    behavior: smooth ? "smooth" : "auto",
-  });
+
+  const latest = list.querySelector(".beulah-ai__message:last-of-type");
+  if (latest) {
+    const targetTop = Math.max(
+      0,
+      latest.offsetTop - Math.max(0, (list.clientHeight - latest.offsetHeight) / 2),
+    );
+    list.scrollTo({
+      top: targetTop,
+      behavior: smooth ? "smooth" : "auto",
+    });
+  } else {
+    list.scrollTo({
+      top: list.scrollHeight,
+      behavior: smooth ? "smooth" : "auto",
+    });
+  }
+
   requestAnimationFrame(updateScrollButton);
 }
 
 function scrollToTurn(element, behavior = "smooth") {
   if (!element) return;
-  element.scrollIntoView({
-    block: "start",
-    inline: "nearest",
+  const list = getList();
+  if (!list) return;
+
+  const targetTop = Math.max(
+    0,
+    element.offsetTop - Math.max(0, (list.clientHeight - element.offsetHeight) / 2),
+  );
+
+  list.scrollTo({
+    top: targetTop,
     behavior,
   });
   requestAnimationFrame(updateScrollButton);
@@ -232,7 +289,7 @@ function renderTranscript({ preserveScroll = false } = {}) {
     empty.className = "beulah-ai__empty";
     empty.innerHTML =
       '<div class="beulah-ai__empty-icon">' + icon("bot") + '</div>' +
-      '<p class="beulah-ai__empty-title">How can I help?</p>' +
+      '<p class="beulah-ai__empty-title">' + getWelcomeMessage() + '</p>' +
       '<p class="beulah-ai__empty-copy">Ask about Beulah Foods products, stock, cooking, orders, delivery or checkout.</p>';
     list.append(empty);
     updateScrollButton();
@@ -365,7 +422,7 @@ async function loadConversationHistory() {
     if (!response.ok) throw new Error("HISTORY_LOAD_FAILED");
 
     const data = await response.json();
-    messages = Array.isArray(data.messages)
+    historyMessages = Array.isArray(data.messages)
       ? data.messages.slice(-30).map(item => ({
           id: crypto.randomUUID(),
           role: item.role === "assistant" ? "assistant" : "user",
@@ -375,8 +432,14 @@ async function loadConversationHistory() {
         }))
       : [];
 
-    renderTranscript();
+    // Keep server history ready in memory, but intentionally do not render it
+    // until the customer starts a new message in this page interaction.
+    if (!conversationStarted) {
+      messages = [];
+      renderTranscript();
+    }
   } catch {
+    historyMessages = [];
     messages = [];
     renderTranscript();
   }
@@ -398,6 +461,8 @@ async function clearConversation() {
     if (!response.ok) throw new Error("CLEAR_FAILED");
 
     messages = [];
+    historyMessages = [];
+    conversationStarted = false;
     pendingRetry = null;
     renderTranscript();
   } catch {
@@ -477,6 +542,20 @@ async function sendMessage(text) {
   const sendButton = document.querySelector(".beulah-ai__send");
 
   if (!value || sendButton?.disabled) return;
+
+  if (!navigator.onLine) {
+    addMessage("assistant", "You're offline right now. Please reconnect to the internet and try again.", [], {
+      error: true,
+      follow: true,
+    });
+    return;
+  }
+
+  if (!conversationStarted) {
+    conversationStarted = true;
+    messages = [...historyMessages];
+    renderTranscript();
+  }
 
   if (input) input.value = "";
   if (sendButton) {
@@ -635,25 +714,30 @@ export function initAiAssistant() {
     input?.blur();
   });
 
-  toggle.addEventListener("click", () => {
+  const openAssistant = ({ restoreState = true } = {}) => {
     panel.hidden = false;
     toggle.classList.add("is-hidden");
     toggle.setAttribute("aria-expanded", "true");
+    if (restoreState) {
+      try { sessionStorage.setItem(AI_OPEN_STATE_KEY, "true"); } catch {}
+    }
 
-    if (!messages.length && historyLoaded) renderTranscript();
+    if (!conversationStarted && !messages.length) renderTranscript();
     requestAnimationFrame(() => {
-      scrollToLatest({ smooth: false, force: true });
       updateScrollButton();
     });
 
     // Do not autofocus on mobile. The customer can tap the composer when ready.
-  });
+  };
+
+  toggle.addEventListener("click", () => openAssistant());
 
   close.addEventListener("click", () => {
     panel.hidden = true;
     toggle.classList.remove("is-hidden");
     toggle.setAttribute("aria-expanded", "false");
     input?.blur();
+    try { sessionStorage.removeItem(AI_OPEN_STATE_KEY); } catch {}
   });
 
   clear.addEventListener("click", clearConversation);
@@ -697,4 +781,10 @@ export function initAiAssistant() {
 
   loadConversationHistory();
   updateCommandHintVisibility();
+
+  try {
+    if (sessionStorage.getItem(AI_OPEN_STATE_KEY) === "true") {
+      openAssistant({ restoreState: false });
+    }
+  } catch {}
 }
