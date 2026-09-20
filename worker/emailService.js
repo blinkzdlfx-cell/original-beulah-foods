@@ -87,7 +87,8 @@ async function getOrderEmailContext(env, orderId) {
     limit: "1",
   });
   const { response, data } = await supabaseRequest(env, "/rest/v1/orders?" + query.toString());
-  if (!response.ok || !Array.isArray(data) || !data[0]) {\n    console.error(JSON.stringify({ event: "transactional_email_order_lookup_failed", order_id: orderId, http_status: response.status }));\n    throw new Error("ORDER_NOT_FOUND_FOR_EMAIL");\n  }
+  if (!response.ok || !Array.isArray(data) || !data[0]) {
+    console.error(JSON.stringify({ event: "transactional_email_order_lookup_failed", order_id: orderId, http_status: response.status }));\n    throw new Error("ORDER_NOT_FOUND_FOR_EMAIL");\n  }
   const order = data[0];
 
   const userResponse = await fetch(
@@ -99,7 +100,8 @@ async function getOrderEmailContext(env, orderId) {
       },
     },
   );
-  if (!userResponse.ok) {\n    console.error(JSON.stringify({ event: "transactional_email_customer_lookup_failed", order_id: orderId, customer_id: order.customer_id, http_status: userResponse.status }));\n    throw new Error("CUSTOMER_EMAIL_NOT_FOUND");\n  }
+  if (!userResponse.ok) {
+    console.error(JSON.stringify({ event: "transactional_email_customer_lookup_failed", order_id: orderId, customer_id: order.customer_id, http_status: userResponse.status }));\n    throw new Error("CUSTOMER_EMAIL_NOT_FOUND");\n  }
   const user = await userResponse.json();
   const email = String(user?.email || "").trim();
   if (!email) throw new Error("CUSTOMER_EMAIL_NOT_FOUND");
