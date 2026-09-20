@@ -57,3 +57,12 @@ namespace_id = "2026091802"
   [ratelimits.simple]
   limit = 5
   period = 60
+
+# Production custom domains. Each hostname is explicit because Custom Domains match exact hostnames.
+[[routes]]
+pattern = "beulahfoods.com"
+custom_domain = true
+
+[[routes]]
+pattern = "www.beulahfoods.com"
+custom_domain = true
