@@ -1,0 +1,16 @@
+# Cloudflare Workers Static Assets
+# The repository root is currently the asset directory, so explicitly exclude
+# server-side source, deployment metadata, and development-only files.
+
+.git/
+.wrangler/
+.env.example
+.gitignore
+.assetsignore
+wrangler.toml
+worker.js
+worker/
+docs/
+d1/
+supabase/
+tests/
