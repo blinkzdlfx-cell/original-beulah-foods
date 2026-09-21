@@ -8,25 +8,35 @@ export async function renderAnnouncements(page) {
   if (!root) return;
 
   try {
-    const items = await loadAnnouncements(page);
-    const visible = items.filter(shouldDisplay);
+    const items = (await loadAnnouncements(page)).filter(shouldDisplay);
     root.hidden = true;
     root.innerHTML = "";
 
-    if (!visible.length) return;
+    if (!items.length) return;
 
-    const modal = visible.find((item) => item.display_type === "modal");
-    const nonModal = visible.filter((item) => item !== modal);
+    const modal = items.find((item) => item.display_type === "modal");
+    const banners = items.filter((item) => item.display_type === "banner");
+    const contentItems = items.filter((item) => item !== modal && item.display_type !== "banner");
 
-    if (nonModal.length) {
+    if (banners.length) {
+      const host = document.createElement("div");
+      host.className = "announcement-banner-region";
+      banners.forEach((item) => {
+        host.appendChild(createAnnouncement(item));
+        markViewed(item);
+      });
+      const main = document.querySelector("main");
+      if (main) main.before(host);
+      else document.body.prepend(host);
+    }
+
+    if (contentItems.length) {
       const list = document.createElement("div");
       list.className = "announcement-list";
-
-      nonModal.forEach((item) => {
+      contentItems.forEach((item) => {
         list.appendChild(createAnnouncement(item));
         markViewed(item);
       });
-
       root.appendChild(list);
       root.hidden = false;
     }
@@ -41,15 +51,28 @@ export async function renderAnnouncements(page) {
   }
 }
 
+function announcementKey(item, kind) {
+  return STORAGE_PREFIX + item.id + ":" + (item.updated_at || "current") + ":" + kind;
+}
+
 function shouldDisplay(item) {
   const type = item.display_type || (item.display_mode === "banner" ? "banner" : "inline");
   if (!VALID_TYPES.has(type)) return false;
-  if (item.show_once && localStorage.getItem(STORAGE_PREFIX + item.id)) return false;
+  try {
+    if (localStorage.getItem(announcementKey(item, "dismissed")) === "1") return false;
+    if (item.show_once && localStorage.getItem(announcementKey(item, "viewed")) === "1") return false;
+  } catch {}
   return true;
 }
 
 function markViewed(item) {
-  if (item.show_once) localStorage.setItem(STORAGE_PREFIX + item.id, "1");
+  if (!item.show_once) return;
+  try { localStorage.setItem(announcementKey(item, "viewed"), "1"); } catch {}
+}
+
+function markDismissed(item) {
+  if (!item.dismissible) return;
+  try { localStorage.setItem(announcementKey(item, "dismissed"), "1"); } catch {}
 }
 
 function createAnnouncement(item) {
@@ -78,19 +101,20 @@ function createAnnouncement(item) {
   description.textContent = item.short_description;
 
   content.append(heading, description);
-
   const actions = createActions(item);
   if (actions) content.appendChild(actions);
+  article.appendChild(content);
 
   if (item.dismissible) {
     const close = createCloseButton(() => {
+      markDismissed(item);
       article.remove();
-      if (!article.parentElement?.children.length) rootCleanup(article);
+      const region = article.closest(".announcement-region,.announcement-banner-region");
+      if (region && !region.children.length) region.remove();
     });
     article.appendChild(close);
   }
 
-  article.appendChild(content);
   return article;
 }
 
@@ -125,12 +149,18 @@ function createModal(item) {
   if (actions) content.appendChild(actions);
   dialog.appendChild(content);
 
-  const close = createCloseButton(() => overlay.remove());
+  const close = createCloseButton(() => {
+    markDismissed(item);
+    overlay.remove();
+  });
   dialog.appendChild(close);
   overlay.appendChild(dialog);
 
   overlay.addEventListener("click", (event) => {
-    if (event.target === overlay && item.dismissible) overlay.remove();
+    if (event.target === overlay) {
+      markDismissed(item);
+      overlay.remove();
+    }
   });
 
   return overlay;
@@ -162,11 +192,6 @@ function createCloseButton(onClose) {
   button.textContent = "×";
   button.addEventListener("click", onClose);
   return button;
-}
-
-function rootCleanup(article) {
-  const region = article.closest("[data-announcements]");
-  if (region) region.hidden = true;
 }
 
 function safeUrl(value) {
