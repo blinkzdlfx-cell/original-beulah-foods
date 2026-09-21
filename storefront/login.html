@@ -15,7 +15,7 @@
   <link rel="stylesheet" href="css/toast.css" />
   <link rel="stylesheet" href="css/footer.css?v=ed96d31c" />
 </head>
-<body><section class="announcement-region" data-announcements hidden aria-label="Announcements"></section>
+<body>
   <header class="site-header">
     <div class="site-header__inner">
       <a class="site-header__logo-wrap" href="/" aria-label="Beulah Foods home">
@@ -26,7 +26,7 @@
     </div>
   </header>
 
-  <main class="auth-page">
+  <main class="auth-page"><section class="announcement-region" data-announcements hidden aria-label="Announcements"></section>
     <section class="auth-shell" aria-label="Customer login">
       <aside class="auth-intro">
         <div class="auth-intro__brand"><img class="auth-intro__mark" src="/assets/beulah-logo.webp" alt="" /> Beulah Foods</div>
@@ -54,7 +54,7 @@
 
   <script type="module" src="js/pages/login.js"></script>
   <script type="module" src="js/components/passwordToggle.js"></script>
-<script type="module">import { renderAnnouncements } from "./js/components/announcements.js"; renderAnnouncements("login");</script><footer class="site-footer"><div class="footer__inner"><div class="footer__top"><div class="footer__brand-block"><a class="footer__brand" href="/" aria-label="Beulah Foods home">Beulah Foods</a><p class="footer__tagline">Eat Healthy, Live Healthy.</p><p class="footer__attribution">Produced and distributed by Beulah Gain Nigeria Limited.</p></div><nav class="footer__column" aria-label="Footer navigation"><strong>Explore</strong><a href="/shop">Shop</a><a href="/how-to">How To</a><a href="/account">My Account</a><a href="/orders">My Orders</a></nav><div class="footer__column"><strong>Support</strong><a href="mailto:beulahfoodshelp@gmail.com">beulahfoodshelp@gmail.com</a><a href="https://wa.me/2348029558484" target="_blank" rel="noopener noreferrer">WhatsApp: 08029558484</a><a href="tel:+2348024749030">Call: 08024749030</a></div><div class="footer__column footer__locations"><strong>Visit us</strong><div><b>Head Office</b><p>Suite B19/C9, Amori Shopping Complex,<br>OreLope Bus Stop, Egbeda Road.</p></div><div><b>Factory</b><p>22 Joshua Okeowo Street,<br>Ikotun, Lagos.</p></div></div></div><div class="footer__bottom"><div class="footer__legal"><a href="/privacy-policy.html">Privacy Policy</a><a href="/terms-of-service.html">Terms of Service</a></div><p>© <span id="footer-year"></span> Beulah Foods · Lagos, Nigeria</p></div></div></footer>
+<footer class="site-footer"><div class="footer__inner"><div class="footer__top"><div class="footer__brand-block"><a class="footer__brand" href="/" aria-label="Beulah Foods home">Beulah Foods</a><p class="footer__tagline">Eat Healthy, Live Healthy.</p><p class="footer__attribution">Produced and distributed by Beulah Gain Nigeria Limited.</p></div><nav class="footer__column" aria-label="Footer navigation"><strong>Explore</strong><a href="/shop">Shop</a><a href="/how-to">How To</a><a href="/account">My Account</a><a href="/orders">My Orders</a></nav><div class="footer__column"><strong>Support</strong><a href="mailto:beulahfoodshelp@gmail.com">beulahfoodshelp@gmail.com</a><a href="https://wa.me/2348029558484" target="_blank" rel="noopener noreferrer">WhatsApp: 08029558484</a><a href="tel:+2348024749030">Call: 08024749030</a></div><div class="footer__column footer__locations"><strong>Visit us</strong><div><b>Head Office</b><p>Suite B19/C9, Amori Shopping Complex,<br>OreLope Bus Stop, Egbeda Road.</p></div><div><b>Factory</b><p>22 Joshua Okeowo Street,<br>Ikotun, Lagos.</p></div></div></div><div class="footer__bottom"><div class="footer__legal"><a href="/privacy-policy.html">Privacy Policy</a><a href="/terms-of-service.html">Terms of Service</a></div><p>© <span id="footer-year"></span> Beulah Foods · Lagos, Nigeria</p></div></div></footer>
   <script>document.getElementById("footer-year")?.replaceChildren(String(new Date().getFullYear()));</script>
-</body>
+<script type="module">import { renderAnnouncements } from "./js/components/announcements.js"; renderAnnouncements("login");</script></body>
 </html>
