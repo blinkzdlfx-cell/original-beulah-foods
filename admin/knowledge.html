@@ -16,12 +16,7 @@
     <div class="admin-card login-card"><p class="muted">Beulah Foods administration</p><h1>Admin sign in</h1><p class="muted">Use an authorized admin account.</p></div>
   </section>
   <section id="admin-app" class="hidden">
-    <header class="admin-header"><div class="admin-header__inner">
-      <a class="admin-brand admin-brand--link" href="/admin/"><img src="assets/beulah-admin-logo.svg" alt="Beulah Foods Administration" /></a>
-      <nav class="admin-page-nav" aria-label="Admin navigation">
-        <a href="/admin/">Dashboard</a><a href="/admin/orders.html">Orders</a><a href="/admin/transactions.html">Transactions</a><a href="/admin/how-to.html">How To</a><a class="is-active" href="/admin/knowledge.html">AI Knowledge</a><a href="/admin/announcements.html">Announcements</a>
-      </nav>
-    </div></header>
+    <header class="admin-header"><div class="admin-header__inner"><a class="admin-brand admin-brand--link" href="/admin/"><img src="assets/beulah-admin-logo.svg" alt="Beulah Foods Administration" /></a><button id="admin-menu-toggle" class="admin-menu-toggle" type="button" aria-expanded="false" aria-controls="admin-menu" aria-label="Open admin menu"><span></span><span></span><span></span></button><div id="admin-menu" class="admin-menu" hidden><div class="admin-menu__identity"><span class="admin-menu__label">Admin area</span><strong>Beulah Foods</strong></div><nav class="admin-nav" aria-label="Admin navigation"><a href="/admin/">Dashboard</a><a href="/admin/orders.html">Orders</a><a href="/admin/transactions.html">Transactions</a><a href="/admin/how-to.html">How To</a><a href="/admin/knowledge.html" aria-current="page">AI Knowledge</a><a href="/admin/announcements.html">Announcements</a></nav><div class="admin-menu__footer"><button id="admin-logout" class="admin-menu__logout" type="button">Log out</button></div></div></div></header>
     <main class="admin-main">
       <div id="knowledge-status" class="alert" role="status" aria-live="polite" hidden></div>
       <div class="admin-grid">
@@ -45,6 +40,8 @@
     </main>
   </section>
 </div>
+<script type="module" src="js/admin-navigation.js?v=20260921-1"></script>
 <script type="module" src="js/knowledge.js?v=20260918-1"></script>
+<script type="module" src="js/logout-confirm.js"></script>
 </body>
 </html>
