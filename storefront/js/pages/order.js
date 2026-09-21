@@ -33,7 +33,7 @@ function formatStatus(value) {
 async function init() {
   const session = await getCurrentSession();
   if (!session?.user) {
-    location.href = "/login.html?redirect=order.html";
+    location.href = "/login?redirect=order";
     return;
   }
   const id = new URLSearchParams(location.search).get("id");
@@ -129,7 +129,7 @@ async function cancelReservation() {
       target_order_id: currentOrder.id,
     });
     if (error) throw error;
-    location.href = "/checkout.html";
+    location.href = "/checkout";
   } catch (error) {
     cancelButton.disabled = false;
     cancelButton.textContent = "Cancel reservation";
