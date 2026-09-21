@@ -1,52 +1,46 @@
 <!doctype html>
 <html lang="en-NG">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="robots" content="noindex, nofollow" />
-  <link rel="icon" type="image/svg+xml" href="/admin/assets/favicon.svg" />
-  <title>How To — Beulah Foods Admin</title>
-  <link rel="stylesheet" href="css/variables.css" />
-  <link rel="stylesheet" href="css/admin.css" />
-  <link rel="stylesheet" href="css/admin-refinement.css" />
-  <link rel="stylesheet" href="css/how-to.css" />
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<link rel="icon" type="image/svg+xml" href="/admin/assets/favicon.svg" />
+<title>How To — Beulah Foods Admin</title>
+<link rel="stylesheet" href="css/variables.css" />
+<link rel="stylesheet" href="css/admin.css" />
+<link rel="stylesheet" href="css/admin-refinement.css" />
+<link rel="stylesheet" href="css/how-to.css" />
 </head>
 <body>
-  <div class="admin-shell">
-    <header class="admin-header">
-      <div class="admin-header__inner">
-        <a class="admin-brand admin-brand--link" href="/admin/"><img src="assets/beulah-admin-logo.svg" alt="Beulah Foods Administration" /></a>
-        <nav class="admin-page-nav" aria-label="Admin navigation">
-          <a href="/admin/">Dashboard</a><a href="/admin/orders.html">Orders</a><a href="/admin/transactions.html">Transactions</a><a class="is-active" href="/admin/how-to.html">How To</a>
-        </nav>
-      </div>
-    </header>
-    <main class="admin-main how-to-admin">
-      <div id="how-to-status" class="alert" role="status" aria-live="polite" hidden></div>
-      <section class="admin-card">
-        <div class="section-heading"><div><p class="muted">Customer education</p><h1>How To guides</h1><p class="muted">Create product preparation guides and maintain the customer ordering instructions.</p></div></div>
-        <div class="how-to-grid">
-          <form id="product-guide-form" class="how-to-editor">
-            <div><h2>Product guide</h2><p class="muted">One active guide can be attached to each product.</p></div>
-            <div class="field"><label for="guide-product">Product</label><select id="guide-product" required><option value="">Select a product</option></select></div>
-            <div class="field"><label for="guide-title">Title</label><input id="guide-title" required maxlength="160" placeholder="How to prepare Plantain Flour" /></div>
-            <div class="field"><label for="guide-description">Description</label><textarea id="guide-description" rows="4" maxlength="1000" placeholder="A short introduction to the preparation method."></textarea></div>
-            <label class="field checkbox-field"><input id="guide-active" type="checkbox" checked /> Publish this guide</label>
-            <div><h3>Steps</h3><div id="guide-steps" class="how-to-steps"></div><button class="btn btn-secondary" type="button" id="add-guide-step">Add step</button></div>
-            <div class="actions"><button class="btn btn-secondary" type="button" id="clear-guide">Clear</button><button class="btn btn-primary" type="submit" id="save-guide">Save guide</button></div>
-          </form>
-          <form id="order-guide-form" class="how-to-editor">
-            <div><h2>How to order</h2><p class="muted">Maintain the step-by-step ordering instructions shown to customers.</p></div>
-            <div class="field"><label for="order-title">Title</label><input id="order-title" value="How to Order" required maxlength="160" /></div>
-            <div class="field"><label for="order-description">Description</label><textarea id="order-description" rows="4" maxlength="1000"></textarea></div>
-            <label class="field checkbox-field"><input id="order-active" type="checkbox" checked /> Publish ordering guide</label>
-            <div><h3>Steps</h3><div id="order-steps" class="how-to-steps"></div><button class="btn btn-secondary" type="button" id="add-order-step">Add step</button></div>
-            <div class="actions"><button class="btn btn-primary" type="submit" id="save-order-guide">Save ordering guide</button></div>
-          </form>
-        </div>
-      </section>
-    </main>
-  </div>
-  <script type="module" src="js/how-to.js?v=20260917-1"></script>
-</body>
-</html>
+<div class="admin-shell">
+<header class="admin-header"><div class="admin-header__inner"><a class="admin-brand admin-brand--link" href="/admin/"><img src="assets/beulah-admin-logo.svg" alt="Beulah Foods Administration" /></a><button id="admin-menu-toggle" class="admin-menu-toggle" type="button" aria-expanded="false" aria-controls="admin-menu" aria-label="Open admin menu"><span></span><span></span><span></span></button><div id="admin-menu" class="admin-menu" hidden><div class="admin-menu__identity"><span class="admin-menu__label">Admin area</span><strong>Beulah Foods</strong></div><nav class="admin-nav" aria-label="Admin navigation"><a href="/admin/">Dashboard</a><a href="/admin/orders.html">Orders</a><a href="/admin/transactions.html">Transactions</a><a href="/admin/how-to.html" aria-current="page">How To</a><a href="/admin/knowledge.html">AI Knowledge</a><a href="/admin/announcements.html">Announcements</a></nav><div class="admin-menu__footer"><button id="admin-logout" class="admin-menu__logout" type="button">Log out</button></div></div></div></header>
+<main class="admin-main how-to-admin">
+<div id="how-to-status" class="alert" role="status" aria-live="polite" hidden></div>
+<section class="admin-card">
+<div class="section-heading"><div><p class="muted">Customer education</p><h1>How To guides</h1><p class="muted">Create product preparation guides and maintain the customer ordering instructions.</p></div></div>
+<div class="how-to-grid">
+<form id="product-guide-form" class="how-to-editor">
+<div><h2>Product guide</h2><p class="muted">One active guide can be attached to each product.</p></div>
+<div class="field"><label for="guide-product">Product</label><select id="guide-product" required><option value="">Select a product</option></select></div>
+<div class="field"><label for="guide-title">Title</label><input id="guide-title" required maxlength="160" placeholder="How to prepare Plantain Flour" /></div>
+<div class="field"><label for="guide-description">Description</label><textarea id="guide-description" rows="4" maxlength="1000" placeholder="A short introduction to the preparation method."></textarea></div>
+<label class="field checkbox-field"><input id="guide-active" type="checkbox" checked /> Publish this guide</label>
+<div><h3>Steps</h3><div id="guide-steps" class="how-to-steps"></div><button class="btn btn-secondary" type="button" id="add-guide-step">Add step</button></div>
+<div class="actions"><button class="btn btn-secondary" type="button" id="clear-guide">Clear</button><button class="btn btn-primary" type="submit" id="save-guide">Save guide</button></div>
+</form>
+<form id="order-guide-form" class="how-to-editor">
+<div><h2>How to order</h2><p class="muted">Maintain the step-by-step ordering instructions shown to customers.</p></div>
+<div class="field"><label for="order-title">Title</label><input id="order-title" value="How to Order" required maxlength="160" /></div>
+<div class="field"><label for="order-description">Description</label><textarea id="order-description" rows="4" maxlength="1000"></textarea></div>
+<label class="field checkbox-field"><input id="order-active" type="checkbox" checked /> Publish ordering guide</label>
+<div><h3>Steps</h3><div id="order-steps" class="how-to-steps"></div><button class="btn btn-secondary" type="button" id="add-order-step">Add step</button></div>
+<div class="actions"><button class="btn btn-primary" type="submit" id="save-order-guide">Save ordering guide</button></div>
+</form>
+</div>
+</section>
+</main>
+</div>
+<script type="module" src="js/admin-navigation.js?v=20260921-1"></script>
+<script type="module" src="js/how-to.js?v=20260917-1"></script>
+<script type="module" src="js/logout-confirm.js"></script>
+</body></html>
