@@ -4,3 +4,29 @@
 @media(min-width:801px){.admin-header{position:fixed;inset:0 auto 0 0;width:248px;height:100vh;border-right:1px solid var(--admin-border);border-bottom:0}.admin-header__inner{height:100%;max-width:none;margin:0;padding:24px 14px;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:24px}.admin-brand{padding:0 10px}.admin-menu-toggle{display:none}.admin-menu[hidden]{display:flex;position:static;width:auto;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;flex:1;flex-direction:column;align-items:stretch;gap:0}.admin-menu__identity{display:grid;border-bottom:1px solid var(--admin-border);padding:0 10px 18px}.admin-nav{display:grid;gap:4px;padding:18px 0}.admin-nav a{min-height:44px;padding:11px 12px}.admin-menu__footer{margin-top:auto;padding-top:14px;border-top:1px solid var(--admin-border)}.admin-menu__logout{width:100%;min-height:42px;text-align:left}.admin-main{max-width:none;margin-left:248px;padding:32px 36px 64px}}
 @media(max-width:800px){.admin-header{position:sticky;top:0}.admin-header__inner{padding:12px 16px}.admin-menu{right:16px}.admin-main{padding:22px 16px 48px}.admin-grid{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.metric-grid{grid-template-columns:1fr}.admin-card{padding:18px}.admin-pagination{justify-content:space-between}.logout-modal{padding:16px}.logout-modal__dialog{padding:20px}.logout-modal__actions{justify-content:stretch}.logout-modal__actions .btn{flex:1}}
 .admin-guide-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.admin-guide-grid article{padding:16px;border:1px solid var(--admin-border);border-radius:10px;background:var(--admin-surface-subtle)}.admin-guide-grid h3{margin:0 0 6px;font-size:.95rem}.admin-guide-grid p{margin:0;color:var(--admin-muted);font-size:.84rem;line-height:1.55}.admin-guide-note{margin-top:14px;padding:13px 14px;border-left:3px solid var(--admin-accent);background:rgba(62,207,142,.07);font-size:.84rem;line-height:1.55}@media(max-width:1000px) and (min-width:801px){.admin-guide-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:800px){.admin-guide-grid{grid-template-columns:1fr}}
+/* Admin navigation refinement: desktop collapsible sidebar + mobile drawer */
+.admin-sidebar-backdrop{display:none}
+.admin-sidebar-collapse{width:36px;height:36px;margin-left:auto;padding:0;border:1px solid var(--admin-border);border-radius:8px;background:#fff;color:var(--admin-muted);font:inherit;font-weight:800;cursor:pointer}
+.admin-sidebar-collapse:hover{background:var(--admin-surface-subtle);color:var(--admin-text)}
+@media(min-width:801px){
+  body.admin-sidebar-collapsed .admin-header{width:76px}
+  body.admin-sidebar-collapsed .admin-main{margin-left:76px}
+  body.admin-sidebar-collapsed .admin-brand{display:flex;justify-content:center;padding:0}
+  body.admin-sidebar-collapsed .admin-brand img{width:44px!important;max-width:44px!important;object-fit:cover;object-position:left}
+  body.admin-sidebar-collapsed .admin-menu__identity,
+  body.admin-sidebar-collapsed .admin-nav a,
+  body.admin-sidebar-collapsed .admin-menu__logout{font-size:0;justify-content:center;padding-left:0;padding-right:0}
+  body.admin-sidebar-collapsed .admin-nav a{min-height:44px}
+  body.admin-sidebar-collapsed .admin-nav a::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+  body.admin-sidebar-collapsed .admin-menu__identity{display:none}
+  body.admin-sidebar-collapsed .admin-menu__footer{padding-top:14px}
+  body.admin-sidebar-collapsed .admin-sidebar-collapse{margin:0 auto}
+}
+@media(max-width:800px){
+  .admin-header{z-index:100}
+  .admin-menu{position:fixed;top:0;right:0;width:min(330px,88vw);height:100dvh;max-height:none;margin:0;padding:20px 16px;overflow-y:auto;border:0;border-left:1px solid var(--admin-border);border-radius:0;box-shadow:-18px 0 50px rgba(16,24,20,.16);z-index:102}
+  .admin-menu__identity{padding-top:56px}
+  .admin-sidebar-backdrop{position:fixed;inset:0;background:rgba(15,23,19,.38);z-index:101}
+  .admin-sidebar-backdrop[hidden]{display:none}
+  .admin-sidebar-collapse{position:absolute;top:16px;right:16px;margin:0}
+}
