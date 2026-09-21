@@ -1790,6 +1790,11 @@ function assetRequest(request, env) {
   }
 
   const cleanPath = path.replace(/^\//, "");
+  if (cleanPath === "callback") {
+    const callbackUrl = new URL(request.url);
+    callbackUrl.pathname = "/storefront/payment-callback.html";
+    return env.ASSETS.fetch(new Request(callbackUrl, request));
+  }
   if (STOREFRONT_PAGES.has(cleanPath)) {
     const storefrontUrl = new URL(request.url);
     storefrontUrl.pathname = `/storefront/${cleanPath}.html`;
