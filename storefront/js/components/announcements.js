@@ -123,7 +123,8 @@ function createModal(item) {
   overlay.className = "announcement-modal";
   overlay.setAttribute("role", "dialog");
   overlay.setAttribute("aria-modal", "true");
-  overlay.setAttribute("aria-label", item.title);
+  overlay.setAttribute("aria-labelledby", "announcement-modal-title-" + item.id);
+  overlay.setAttribute("aria-describedby", "announcement-modal-description-" + item.id);
 
   const dialog = document.createElement("article");
   dialog.className = "announcement announcement--modal";
@@ -133,17 +134,23 @@ function createModal(item) {
     image.className = "announcement__image";
     image.src = announcementImage(item.image_path);
     image.alt = "";
+    image.loading = "lazy";
     dialog.appendChild(image);
   }
 
   const content = document.createElement("div");
   content.className = "announcement__content";
+
   const heading = document.createElement("h2");
   heading.className = "announcement__title";
+  heading.id = "announcement-modal-title-" + item.id;
   heading.textContent = item.title;
+
   const description = document.createElement("p");
   description.className = "announcement__description";
+  description.id = "announcement-modal-description-" + item.id;
   description.textContent = item.short_description;
+
   content.append(heading, description);
   const actions = createActions(item);
   if (actions) content.appendChild(actions);
@@ -152,16 +159,26 @@ function createModal(item) {
   const close = createCloseButton(() => {
     markDismissed(item);
     overlay.remove();
+    document.removeEventListener("keydown", onKeyDown);
   });
-  dialog.appendChild(close);
+
+  if (item.dismissible) {
+    dialog.appendChild(close);
+  }
+
   overlay.appendChild(dialog);
 
-  overlay.addEventListener("click", (event) => {
-    if (event.target === overlay) {
-      markDismissed(item);
-      overlay.remove();
-    }
-  });
+  function onKeyDown(event) {
+    if (event.key === "Escape" && item.dismissible) close.click();
+  }
+
+  document.addEventListener("keydown", onKeyDown);
+
+  if (item.dismissible) {
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) close.click();
+    });
+  }
 
   return overlay;
 }
