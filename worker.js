@@ -170,7 +170,7 @@ async function initializePaystack(request, env) {
   const reference = String(payment?.reference || "");
   if (amountKobo === null || !reference) return json({ error: "PAYMENT_ATTEMPT_INVALID" }, 500);
 
-  const callbackUrl = `${new URL(request.url).origin}/payment-callback`;
+  const callbackUrl = `${new URL(request.url).origin}/callback`;
   const paystack = await paystackRequest(env, "/transaction/initialize", {
     method: "POST",
     body: JSON.stringify({
@@ -1715,13 +1715,15 @@ const LEGACY_STOREFRONT_REDIRECTS = Object.freeze({
   "/checkout.html": "/checkout",
   "/account.html": "/account",
   "/orders.html": "/orders",
+  "/order.html": "/order",
   "/how-to.html": "/how-to",
   "/login.html": "/login",
   "/signup.html": "/signup",
   "/forgot-password.html": "/forgot-password",
   "/reset-password.html": "/reset-password",
   "/verification-success.html": "/verification-success",
-  "/payment-callback.html": "/payment-callback",
+  "/payment-callback.html": "/callback",
+  "/payment-callback": "/callback",
 });
 
 const STOREFRONT_PAGES = new Set([
@@ -1739,6 +1741,10 @@ const STOREFRONT_PAGES = new Set([
   "orders",
   "order",
   "payment-callback",
+  "callback",
+  "privacy-policy",
+  "terms-of-service",
+  "reservations",
 ]);
 
 function assetRequest(request, env) {
