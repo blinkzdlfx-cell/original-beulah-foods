@@ -79,7 +79,7 @@ async function init() {
       }
       if (data.order_id) {
         setTimeout(() => {
-          window.location.href = `/order.html?id=${encodeURIComponent(data.order_id)}`;
+          window.location.href = `/order?id=${encodeURIComponent(data.order_id)}`;
         }, 1200);
       }
       return;
