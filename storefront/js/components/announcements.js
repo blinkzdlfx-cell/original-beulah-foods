@@ -108,8 +108,8 @@ function createAnnouncement(item) {
   if (item.dismissible) {
     const close = createCloseButton(() => {
       markDismissed(item);
-      article.remove();
       const region = article.closest(".announcement-region,.announcement-banner-region");
+      article.remove();
       if (region && !region.children.length) region.remove();
     });
     article.appendChild(close);
