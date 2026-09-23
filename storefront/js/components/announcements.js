@@ -35,7 +35,9 @@ export async function renderAnnouncements(page) {
       const host = document.createElement("div");
       host.className = "announcement-featured-float";
       featuredItems.slice(0, 1).forEach((item) => {
-        host.appendChild(createAnnouncement(item));
+        const card = createAnnouncement(item);
+        card.dataset.featuredId = item.id;
+        host.appendChild(card);
         markViewed(item);
       });
       document.body.appendChild(host);
@@ -134,6 +136,13 @@ function createAnnouncement(item) {
     article.appendChild(
       createCloseButton(() => {
         markDismissed(item);
+        const floatHost = article.closest(".announcement-featured-float");
+        if (floatHost) {
+          floatHost.classList.remove("is-visible");
+          floatHost.classList.add("is-closing");
+          window.setTimeout(() => floatHost.remove(), 450);
+          return;
+        }
         const region = article.closest(".announcement-region,.announcement-banner-region");
         article.remove();
         if (region && !region.querySelector(".announcement")) region.remove();
