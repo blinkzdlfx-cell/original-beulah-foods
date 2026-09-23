@@ -39,7 +39,7 @@ if (toggle && menu) {
 
   window.addEventListener("resize", () => {
     if (isDesktop()) {
-      menu.hidden = false;
+      menu.hidden = true;
       toggle.setAttribute("aria-expanded", "false");
       toggle.setAttribute("aria-label", "Open admin menu");
     } else {
@@ -47,5 +47,5 @@ if (toggle && menu) {
     }
   });
 
-  if (isDesktop()) menu.hidden = false;
+  if (isDesktop()) menu.hidden = true;
 }
