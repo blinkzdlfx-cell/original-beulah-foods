@@ -23,7 +23,7 @@
 <div class="field"><label for="announcement-expires">Expires (optional)</label><input id="announcement-expires" type="datetime-local"></div>
 <div class="field"><label for="announcement-cta-text">CTA text (optional)</label><input id="announcement-cta-text" maxlength="80" placeholder="Learn more"></div>
 <div class="field"><label for="announcement-cta-url">CTA URL (optional)</label><input id="announcement-cta-url" maxlength="500" placeholder="/shop or https://example.com"><small class="muted">Use a Beulah path or an HTTP(S) URL.</small></div>
-<div class="field"><label for="announcement-image">Image (optional)</label><input id="announcement-image" type="file" accept="image/jpeg,image/png,image/webp"><small class="muted">JPG, PNG or WebP · maximum 5 MB</small><div id="announcement-image-preview" class="announcement-image-preview" hidden></div><label id="announcement-remove-image-wrap" class="checkbox-field" hidden><input id="announcement-remove-image" type="checkbox" disabled> Remove current image</label></div>
+<div class="field"><label for="announcement-image">Image (optional)</label><input id="announcement-image" type="file" accept="image/jpeg,image/png,image/webp"><small class="muted">JPG, PNG or WebP · maximum 5 MB</small><div id="announcement-image-preview" class="announcement-image-preview" hidden></div><button id="announcement-remove-image" class="btn btn-secondary announcement-remove-image" type="button" hidden disabled>Remove current image</button></div>
 <div class="field checkbox-field-group"><label class="checkbox-field"><input id="announcement-active" type="checkbox" checked> Publish announcement</label><label class="checkbox-field"><input id="announcement-dismissible" type="checkbox" checked> Allow customers to dismiss</label><label class="checkbox-field"><input id="announcement-show-once" type="checkbox"> Show once per browser</label></div>
 <div class="actions full"><button class="btn btn-primary" type="submit" id="announcement-save">Save announcement</button><button class="btn btn-secondary" type="button" id="announcement-clear">Clear</button></div>
 </form>
@@ -33,6 +33,6 @@
 </section>
 </main>
 <script type="module" src="js/admin-navigation.js?v=20260921-2"></script>
-<script type="module" src="js/announcements.js?v=20260923-1"></script>
+<script type="module" src="js/announcements.js?v=20260923-2"></script>
 <script type="module" src="js/logout-confirm.js"></script>
 </body></html>
