@@ -1751,6 +1751,18 @@ function assetRequest(request, env) {
   const url = new URL(request.url);
   const path = url.pathname;
 
+  // Service worker updates must not be blocked by a stale browser or edge cache.
+  if (path === "/sw.js") {
+    const response = await env.ASSETS.fetch(request);
+    const headers = new Headers(response.headers);
+    headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  }
+
   if (path === "/storefront/" || path === "/storefront/index.html") {
     const storefrontUrl = new URL(request.url);
     storefrontUrl.pathname = "/storefront/index.html";
