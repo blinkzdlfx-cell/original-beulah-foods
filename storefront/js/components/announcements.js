@@ -16,7 +16,8 @@ export async function renderAnnouncements(page) {
 
     const modal = items.find((item) => item.display_type === "modal");
     const banners = items.filter((item) => item.display_type === "banner");
-    const contentItems = items.filter((item) => item !== modal && item.display_type !== "banner");
+    const featuredItems = items.filter((item) => item.display_type === "featured");
+    const contentItems = items.filter((item) => item !== modal && item.display_type !== "banner" && item.display_type !== "featured");
 
     if (banners.length) {
       const host = document.createElement("div");
@@ -28,6 +29,17 @@ export async function renderAnnouncements(page) {
       const main = document.querySelector("main");
       if (main) main.before(host);
       else document.body.prepend(host);
+    }
+
+    if (featuredItems.length) {
+      const host = document.createElement("div");
+      host.className = "announcement-featured-float";
+      featuredItems.slice(0, 1).forEach((item) => {
+        host.appendChild(createAnnouncement(item));
+        markViewed(item);
+      });
+      document.body.appendChild(host);
+      requestAnimationFrame(() => host.classList.add("is-visible"));
     }
 
     if (contentItems.length) {
