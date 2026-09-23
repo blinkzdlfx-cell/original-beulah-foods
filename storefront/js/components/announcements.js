@@ -58,21 +58,27 @@ function announcementKey(item, kind) {
 function shouldDisplay(item) {
   const type = item.display_type || (item.display_mode === "banner" ? "banner" : "inline");
   if (!VALID_TYPES.has(type)) return false;
+
   try {
     if (localStorage.getItem(announcementKey(item, "dismissed")) === "1") return false;
     if (item.show_once && localStorage.getItem(announcementKey(item, "viewed")) === "1") return false;
   } catch {}
+
   return true;
 }
 
 function markViewed(item) {
   if (!item.show_once) return;
-  try { localStorage.setItem(announcementKey(item, "viewed"), "1"); } catch {}
+  try {
+    localStorage.setItem(announcementKey(item, "viewed"), "1");
+  } catch {}
 }
 
 function markDismissed(item) {
   if (!item.dismissible) return;
-  try { localStorage.setItem(announcementKey(item, "dismissed"), "1"); } catch {}
+  try {
+    localStorage.setItem(announcementKey(item, "dismissed"), "1");
+  } catch {}
 }
 
 function createAnnouncement(item) {
@@ -81,12 +87,17 @@ function createAnnouncement(item) {
   article.className = "announcement announcement--" + type;
 
   if (item.image_path) {
+    const media = document.createElement("div");
+    media.className = "announcement__media";
+
     const image = document.createElement("img");
     image.className = "announcement__image";
     image.src = announcementImage(item.image_path);
     image.alt = "";
     image.loading = "lazy";
-    article.appendChild(image);
+    image.decoding = "async";
+    media.appendChild(image);
+    article.appendChild(media);
   }
 
   const content = document.createElement("div");
@@ -101,18 +112,21 @@ function createAnnouncement(item) {
   description.textContent = item.short_description;
 
   content.append(heading, description);
+
   const actions = createActions(item);
   if (actions) content.appendChild(actions);
+
   article.appendChild(content);
 
   if (item.dismissible) {
-    const close = createCloseButton(() => {
-      markDismissed(item);
-      const region = article.closest(".announcement-region,.announcement-banner-region");
-      article.remove();
-      if (region && !region.children.length) region.remove();
-    });
-    article.appendChild(close);
+    article.appendChild(
+      createCloseButton(() => {
+        markDismissed(item);
+        const region = article.closest(".announcement-region,.announcement-banner-region");
+        article.remove();
+        if (region && !region.querySelector(".announcement")) region.remove();
+      })
+    );
   }
 
   return article;
@@ -130,12 +144,17 @@ function createModal(item) {
   dialog.className = "announcement announcement--modal";
 
   if (item.image_path) {
+    const media = document.createElement("div");
+    media.className = "announcement__media";
+
     const image = document.createElement("img");
     image.className = "announcement__image";
     image.src = announcementImage(item.image_path);
     image.alt = "";
     image.loading = "lazy";
-    dialog.appendChild(image);
+    image.decoding = "async";
+    media.appendChild(image);
+    dialog.appendChild(media);
   }
 
   const content = document.createElement("div");
@@ -152,31 +171,39 @@ function createModal(item) {
   description.textContent = item.short_description;
 
   content.append(heading, description);
+
   const actions = createActions(item);
   if (actions) content.appendChild(actions);
+
   dialog.appendChild(content);
 
-  const close = createCloseButton(() => {
-    markDismissed(item);
-    overlay.remove();
-    document.removeEventListener("keydown", onKeyDown);
-  });
-
   if (item.dismissible) {
-    dialog.appendChild(close);
+    dialog.appendChild(
+      createCloseButton(() => {
+        markDismissed(item);
+        overlay.remove();
+        document.removeEventListener("keydown", onKeyDown);
+      })
+    );
   }
 
   overlay.appendChild(dialog);
 
   function onKeyDown(event) {
-    if (event.key === "Escape" && item.dismissible) close.click();
+    if (event.key === "Escape" && item.dismissible) {
+      const close = dialog.querySelector(".announcement__close");
+      if (close) close.click();
+    }
   }
 
   document.addEventListener("keydown", onKeyDown);
 
   if (item.dismissible) {
     overlay.addEventListener("click", (event) => {
-      if (event.target === overlay) close.click();
+      if (event.target === overlay) {
+        const close = dialog.querySelector(".announcement__close");
+        if (close) close.click();
+      }
     });
   }
 
@@ -189,14 +216,17 @@ function createActions(item) {
 
   const wrap = document.createElement("div");
   wrap.className = "announcement__actions";
+
   const link = document.createElement("a");
   link.className = "announcement__cta";
   link.href = url;
   link.textContent = item.cta_text;
+
   if (/^https?:\/\//i.test(url)) {
     link.target = "_blank";
     link.rel = "noopener noreferrer";
   }
+
   wrap.appendChild(link);
   return wrap;
 }
@@ -206,7 +236,7 @@ function createCloseButton(onClose) {
   button.type = "button";
   button.className = "announcement__close";
   button.setAttribute("aria-label", "Dismiss announcement");
-  button.textContent = "×";
+  button.innerHTML = '<span aria-hidden="true">×</span>';
   button.addEventListener("click", onClose);
   return button;
 }
@@ -215,6 +245,7 @@ function safeUrl(value) {
   const raw = String(value || "").trim();
   if (!raw) return "";
   if (raw.startsWith("/")) return raw;
+
   try {
     const url = new URL(raw, window.location.origin);
     return url.protocol === "http:" || url.protocol === "https:" ? url.href : "";
